@@ -232,6 +232,19 @@ function getTradingViewEps(symbol, timeoutMs = 20000) {
         const values = message.p[1].v;
         accumulated = { ...accumulated, ...values };
 
+        const interestingKeys = Object.keys(accumulated).filter((key) => {
+  const k = key.toLowerCase();
+
+  return (
+    k.includes("revenue") ||
+    k.includes("income") ||
+    k.includes("estimate")
+  );
+});
+
+console.log("CAMPOS TRADINGVIEW:");
+console.log(interestingKeys);
+
         if (!Array.isArray(accumulated.eps_estimates_fy_h)) {
           continue;
         }
