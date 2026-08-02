@@ -253,7 +253,8 @@ console.log(interestingKeys);
           accumulated.eps_estimates_fy_h
         );
 
-        finishResolve({
+       finishResolve({
+  debugFields: interestingKeys,
           symbol,
           ticker:
             accumulated.short_name ||
