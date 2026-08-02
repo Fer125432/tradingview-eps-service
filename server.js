@@ -108,6 +108,48 @@ function normalizeEpsEstimates(raw) {
     .sort((a, b) => a.year - b.year);
 }
 
+function normalizeFinancialEstimates(raw, valueKey) {
+  if (!Array.isArray(raw)) return [];
+
+  return raw
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+
+      const year = Number(item.FiscalPeriod);
+      if (!Number.isInteger(year)) return null;
+
+      const estimate =
+        item.Estimate &&
+        typeof item.Estimate === "object" &&
+        !Array.isArray(item.Estimate)
+          ? item.Estimate
+          : null;
+
+      const value = estimate
+        ? numberOrNull(estimate.average)
+        : numberOrNull(item.Estimate);
+
+      if (value === null) return null;
+
+      return {
+        year,
+        [valueKey]: value,
+        median: estimate ? numberOrNull(estimate.median) : null,
+        high: estimate ? numberOrNull(estimate.high) : null,
+        low: estimate ? numberOrNull(estimate.low) : null,
+        analysts: estimate ? numberOrNull(estimate.est_num) : null,
+        actual: numberOrNull(item.Actual),
+        isReported: item.IsReported === true,
+        estimateDate:
+          estimate && Number.isFinite(Number(estimate.date))
+            ? new Date(Number(estimate.date) * 1000).toISOString()
+            : null,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.year - b.year);
+}
+
 function validSymbol(symbol) {
   return /^[A-Z0-9._-]{1,20}:[A-Z0-9.-]{1,20}$/.test(symbol);
 }
@@ -252,7 +294,16 @@ console.log(interestingKeys);
         const annualEstimates = normalizeEpsEstimates(
           accumulated.eps_estimates_fy_h
         );
+const revenueEstimates = normalizeFinancialEstimates(
+  accumulated.revenue_estimates_fy_h,
+  "revenue"
+);
 
+const netIncomeEstimates = normalizeFinancialEstimates(
+  accumulated.net_income_estimates_fy_h,
+  "netIncome"
+);
+        
        finishResolve({
   debugFields: interestingKeys,
           symbol,
@@ -274,29 +325,41 @@ console.log(interestingKeys);
               accumulated.regular_close ??
               accumulated.close
           ),
-          eps: {
-            dilutedTtm: numberOrNull(
-              accumulated.earnings_per_share_diluted_ttm
-            ),
-            lastQuarterActual: numberOrNull(
-              accumulated.earnings_per_share_fq
-            ),
-            lastAnnualActual: numberOrNull(
-              accumulated.last_annual_eps
-            ),
-            nextQuarterForecast: numberOrNull(
-              accumulated.earnings_per_share_forecast_next_fq
-            ),
-            nextFiscalYearForecast: numberOrNull(
-              accumulated.earnings_per_share_forecast_next_fy
-            ),
-            annualEstimates,
-            futureEstimates: annualEstimates.filter(
-              (item) => item.isReported === false
-            ),
-          },
-          source: "TradingView WebSocket",
-          fetchedAt: new Date().toISOString(),
+         eps: {
+  dilutedTtm: numberOrNull(
+    accumulated.earnings_per_share_diluted_ttm
+  ),
+  lastQuarterActual: numberOrNull(
+    accumulated.earnings_per_share_fq
+  ),
+  lastAnnualActual: numberOrNull(
+    accumulated.last_annual_eps
+  ),
+  nextQuarterForecast: numberOrNull(
+    accumulated.earnings_per_share_forecast_next_fq
+  ),
+  nextFiscalYearForecast: numberOrNull(
+    accumulated.earnings_per_share_forecast_next_fy
+  ),
+  annualEstimates,
+  futureEstimates: annualEstimates.filter(
+    (item) => item.isReported === false
+  ),
+},
+
+financials: {
+  revenueEstimates,
+  futureRevenueEstimates: revenueEstimates.filter(
+    (item) => item.isReported === false
+  ),
+  netIncomeEstimates,
+  futureNetIncomeEstimates: netIncomeEstimates.filter(
+    (item) => item.isReported === false
+  ),
+},
+
+source: "TradingView WebSocket",
+fetchedAt: new Date().toISOString(),
         });
       }
     });
