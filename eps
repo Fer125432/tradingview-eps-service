@@ -304,6 +304,20 @@ const netIncomeEstimates = normalizeFinancialEstimates(
   accumulated.net_income_estimates_fy_h,
   "netIncome"
 );
+const quarterlyEps = Array.isArray(
+  accumulated.earnings_per_share_fq_h
+)
+  ? accumulated.earnings_per_share_fq_h
+      .map(numberOrNull)
+      .filter((value) => value !== null)
+  : [];
+
+const epsTtmNonGaap =
+  quarterlyEps.length >= 4
+    ? quarterlyEps
+        .slice(0, 4)
+        .reduce((sum, value) => sum + value, 0)
+    : null;
         
        finishResolve({
   debugFields: interestingKeys,
@@ -327,19 +341,8 @@ const netIncomeEstimates = normalizeFinancialEstimates(
               accumulated.close
           ),
         eps: {
-quarterlyRawExists:
-    Object.prototype.hasOwnProperty.call(
-      accumulated,
-      "earnings_per_share_fq_h"
-    ),
-
-quarterlyRawType:
-    typeof accumulated.earnings_per_share_fq_h,
-
-quarterlyRaw:
-    accumulated.earnings_per_share_fq_h === undefined
-        ? "UNDEFINED"
-        : accumulated.earnings_per_share_fq_h,
+quarterlyActuals: quarterlyEps,
+epsTtmNonGaap: epsTtmNonGaap,
 
   dilutedTtm: numberOrNull(
       accumulated.earnings_per_share_diluted_ttm
