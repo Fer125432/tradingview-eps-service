@@ -327,6 +327,10 @@ const netIncomeEstimates = normalizeFinancialEstimates(
               accumulated.close
           ),
          eps: {
+ eps: {
+  quarterlyRaw:
+    accumulated.earnings_per_share_fq_h ?? null,
+
   dilutedTtm: numberOrNull(
     accumulated.earnings_per_share_diluted_ttm
   ),
