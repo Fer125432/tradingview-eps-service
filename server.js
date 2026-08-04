@@ -327,8 +327,19 @@ const netIncomeEstimates = normalizeFinancialEstimates(
               accumulated.close
           ),
         eps: {
-  quarterlyRaw:
-      accumulated.earnings_per_share_fq_h ?? null,
+quarterlyRawExists:
+    Object.prototype.hasOwnProperty.call(
+      accumulated,
+      "earnings_per_share_fq_h"
+    ),
+
+quarterlyRawType:
+    typeof accumulated.earnings_per_share_fq_h,
+
+quarterlyRaw:
+    accumulated.earnings_per_share_fq_h === undefined
+        ? "UNDEFINED"
+        : accumulated.earnings_per_share_fq_h,
 
   dilutedTtm: numberOrNull(
       accumulated.earnings_per_share_diluted_ttm
