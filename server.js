@@ -326,29 +326,34 @@ const netIncomeEstimates = normalizeFinancialEstimates(
               accumulated.regular_close ??
               accumulated.close
           ),
-         eps: {
- eps: {
+        eps: {
   quarterlyRaw:
-    accumulated.earnings_per_share_fq_h ?? null,
+      accumulated.earnings_per_share_fq_h ?? null,
 
   dilutedTtm: numberOrNull(
-    accumulated.earnings_per_share_diluted_ttm
+      accumulated.earnings_per_share_diluted_ttm
   ),
+
   lastQuarterActual: numberOrNull(
-    accumulated.earnings_per_share_fq
+      accumulated.earnings_per_share_fq
   ),
+
   lastAnnualActual: numberOrNull(
-    accumulated.last_annual_eps
+      accumulated.last_annual_eps
   ),
+
   nextQuarterForecast: numberOrNull(
-    accumulated.earnings_per_share_forecast_next_fq
+      accumulated.earnings_per_share_forecast_next_fq
   ),
+
   nextFiscalYearForecast: numberOrNull(
-    accumulated.earnings_per_share_forecast_next_fy
+      accumulated.earnings_per_share_forecast_next_fy
   ),
+
   annualEstimates,
+
   futureEstimates: annualEstimates.filter(
-    (item) => item.isReported === false
+      (item) => item.isReported === false
   ),
 },
 
