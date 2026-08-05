@@ -284,20 +284,6 @@ function getTradingViewEps(symbol, timeoutMs = 20000) {
   })
   .sort();
 
-console.log("eps_estimates_fy_h:");
-console.dir(accumulated.eps_estimates_fy_h, { depth: null });
-
-console.log("earnings_per_share_forecast_fy_h:");
-console.dir(
-  accumulated.earnings_per_share_forecast_fy_h,
-  { depth: null }
-);
-
-console.log("earnings_per_share_fy_h:");
-console.dir(
-  accumulated.earnings_per_share_fy_h,
-  { depth: null }
-);
 
         if (!Array.isArray(accumulated.eps_estimates_fy_h)) {
           continue;
@@ -306,6 +292,23 @@ console.dir(
         const annualEstimates = normalizeEpsEstimates(
           accumulated.eps_estimates_fy_h
         );
+const nextFiscalYearForecast = numberOrNull(
+  accumulated.earnings_per_share_forecast_next_fy
+);
+
+const futureEstimates = annualEstimates
+  .filter((item) => item.isReported === false)
+  .map((item, index) => {
+    if (index === 0 && nextFiscalYearForecast !== null) {
+      return {
+        ...item,
+        eps: nextFiscalYearForecast,
+      };
+    }
+
+    return item;
+  });
+        
 const revenueEstimates = normalizeFinancialEstimates(
   accumulated.revenue_estimates_fy_h,
   "revenue"
@@ -377,9 +380,7 @@ epsTtmNonGaap: epsTtmNonGaap,
 
   annualEstimates,
 
-  futureEstimates: annualEstimates.filter(
-      (item) => item.isReported === false
-  ),
+  futureEstimates,
 },
 
 financials: {
