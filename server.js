@@ -287,6 +287,11 @@ function getTradingViewEps(symbol, timeoutMs = 20000) {
 console.log("CAMPOS EPS TRADINGVIEW:");
 console.log(interestingKeys);
 
+        for (const key of interestingKeys) {
+  console.log("\n======", key, "======");
+  console.dir(accumulated[key], { depth: null });
+}
+
         if (!Array.isArray(accumulated.eps_estimates_fy_h)) {
           continue;
         }
