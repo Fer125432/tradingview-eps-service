@@ -284,13 +284,20 @@ function getTradingViewEps(symbol, timeoutMs = 20000) {
   })
   .sort();
 
-console.log("CAMPOS EPS TRADINGVIEW:");
-console.log(interestingKeys);
+console.log("eps_estimates_fy_h:");
+console.dir(accumulated.eps_estimates_fy_h, { depth: null });
 
-        for (const key of interestingKeys) {
-  console.log("\n======", key, "======");
-  console.dir(accumulated[key], { depth: null });
-}
+console.log("earnings_per_share_forecast_fy_h:");
+console.dir(
+  accumulated.earnings_per_share_forecast_fy_h,
+  { depth: null }
+);
+
+console.log("earnings_per_share_fy_h:");
+console.dir(
+  accumulated.earnings_per_share_fy_h,
+  { depth: null }
+);
 
         if (!Array.isArray(accumulated.eps_estimates_fy_h)) {
           continue;
