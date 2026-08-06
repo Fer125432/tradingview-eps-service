@@ -327,9 +327,63 @@ const epsTtmNonGaap =
         .slice(0, 4)
         .reduce((sum, value) => sum + value, 0)
     : null;
+
+        function buildAnnualHistory(accumulated) {
+  const yearsRaw = Array.isArray(accumulated.fiscal_period_fy_h)
+    ? accumulated.fiscal_period_fy_h
+    : [];
+
+  const years = yearsRaw
+    .map((value) => Number(value))
+    .filter((value) => Number.isInteger(value));
+
+  const readSeries = (key) => {
+    const values = Array.isArray(accumulated[key])
+      ? accumulated[key]
+      : [];
+
+    return years
+      .map((year, index) => ({
+        year,
+        value: numberOrNull(values[index]),
+      }))
+      .filter((item) => item.value !== null);
+  };
+
+  return {
+    revenue: readSeries("total_revenue_fy_h"),
+    cogs: readSeries("cost_of_goods_fy_h"),
+    grossProfit: readSeries("gross_profit_fy_h"),
+    netIncome: readSeries("net_income_fy_h"),
+    epsDiluted: readSeries("earnings_per_share_diluted_fy_h"),
+    sharesDiluted: readSeries("diluted_shares_outstanding_fy_h"),
+
+    totalAssets: readSeries("total_assets_fy_h"),
+    totalLiabilities: readSeries("total_liabilities_fy_h"),
+    equity: readSeries("total_equity_fy_h"),
+
+    cash: readSeries("cash_n_short_term_invest_fy_h"),
+    longTermDebt: readSeries("long_term_debt_fy_h"),
+    shortTermDebt: readSeries("short_term_debt_fy_h"),
+    totalDebt: readSeries("total_debt_fy_h"),
+    netDebt: readSeries("net_debt_fy_h"),
+
+    operatingCashFlow: readSeries(
+      "cash_f_operating_activities_fy_h"
+    ),
+    capex: readSeries("capital_expenditures_fy_h"),
+    freeCashFlow: readSeries("free_cash_flow_fy_h"),
+
+    grossMargin: readSeries("gross_margin_fy_h"),
+    netMargin: readSeries("net_margin_fy_h"),
+  };
+}
+
+const historical = buildAnnualHistory(accumulated);
         
        finishResolve({
   debugFields: interestingKeys,
+         historical,
           symbol,
           ticker:
             accumulated.short_name ||
