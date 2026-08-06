@@ -292,7 +292,7 @@ function getTradingViewEps(symbol, timeoutMs = 20000) {
 const interestingKeys = Object.keys(accumulated)
   .filter((key) => {
     const k = key.toLowerCase();
-return k.endsWith("_fy_h");
+return k.endsWith("_fq_h");
   })
   .sort();
 
