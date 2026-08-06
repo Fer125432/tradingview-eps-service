@@ -420,6 +420,8 @@ const historical = buildAnnualHistory(accumulated);
     readValues("earnings_per_share_diluted_fq_h").length > 0
       ? readValues("earnings_per_share_diluted_fq_h")
       : readValues("earnings_per_share_fq_h");
+          const netIncomeValues =
+  readValues("net_income_fq_h");
 
   function parsePeriod(value, endValue, index) {
     const text = String(value ?? "").trim().toUpperCase();
@@ -505,10 +507,11 @@ const historical = buildAnnualHistory(accumulated);
       });
   }
 
-  return {
-    revenue: buildSeries(revenueValues),
-    epsDiluted: buildSeries(epsValues),
-  };
+ return {
+  revenue: buildSeries(revenueValues),
+  epsDiluted: buildSeries(epsValues),
+  netIncome: buildSeries(netIncomeValues),
+};
 }
 
 const quarterlyHistorical =
