@@ -273,15 +273,16 @@ function getTradingViewEps(symbol, timeoutMs = 20000) {
         const values = message.p[1].v;
         accumulated = { ...accumulated, ...values };
 
-     const interestingKeys = Object.keys(accumulated)
+  const interestingKeys = Object.keys(accumulated)
   .filter((key) => {
     const k = key.toLowerCase();
 
     return (
-      k.includes("eps") ||
-      k.includes("earnings_per_share")
+      k.includes("revenue") ||
+      k.includes("sales")
     );
   })
+  .sort();
   .sort();
 
 
