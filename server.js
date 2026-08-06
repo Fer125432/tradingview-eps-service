@@ -396,10 +396,128 @@ const epsTtmNonGaap =
 }
 
 const historical = buildAnnualHistory(accumulated);
+
+        function buildQuarterlyHistory(accumulated) {
+  const periodsRaw = Array.isArray(accumulated.fiscal_period_fq_h)
+    ? accumulated.fiscal_period_fq_h
+    : [];
+
+  const endsRaw = Array.isArray(accumulated.fiscal_period_end_fq_h)
+    ? accumulated.fiscal_period_end_fq_h
+    : [];
+
+  const readValues = (key) =>
+    Array.isArray(accumulated[key])
+      ? accumulated[key]
+      : [];
+
+  const revenueValues =
+    readValues("total_revenue_fq_h").length > 0
+      ? readValues("total_revenue_fq_h")
+      : readValues("revenue_fq_h");
+
+  const epsValues =
+    readValues("earnings_per_share_diluted_fq_h").length > 0
+      ? readValues("earnings_per_share_diluted_fq_h")
+      : readValues("earnings_per_share_fq_h");
+
+  function parsePeriod(value, endValue, index) {
+    const text = String(value ?? "").trim().toUpperCase();
+
+    // Formatos posibles: 2026Q2, Q2 2026, Q2
+    let match = text.match(/(\d{4}).*Q([1-4])/);
+
+    if (match) {
+      return {
+        year: Number(match[1]),
+        quarter: Number(match[2]),
+      };
+    }
+
+    match = text.match(/Q([1-4]).*(\d{4})/);
+
+    if (match) {
+      return {
+        year: Number(match[2]),
+        quarter: Number(match[1]),
+      };
+    }
+
+    // Si solo viene Q1/Q2/Q3/Q4, usamos la fecha de cierre.
+    const quarterMatch = text.match(/Q([1-4])/);
+    const endDate =
+      typeof endValue === "number"
+        ? new Date(endValue * 1000)
+        : new Date(String(endValue ?? ""));
+
+    if (
+      quarterMatch &&
+      !Number.isNaN(endDate.getTime())
+    ) {
+      return {
+        year: endDate.getUTCFullYear(),
+        quarter: Number(quarterMatch[1]),
+      };
+    }
+
+    // Último respaldo: deducir trimestre por la fecha de cierre.
+    if (!Number.isNaN(endDate.getTime())) {
+      return {
+        year: endDate.getUTCFullYear(),
+        quarter: Math.floor(endDate.getUTCMonth() / 3) + 1,
+      };
+    }
+
+    return null;
+  }
+
+  function buildSeries(values) {
+    return periodsRaw
+      .map((period, index) => {
+        const parsed = parsePeriod(
+          period,
+          endsRaw[index],
+          index,
+        );
+
+        const value = numberOrNull(values[index]);
+
+        if (
+          parsed === null ||
+          value === null
+        ) {
+          return null;
+        }
+
+        return {
+          year: parsed.year,
+          quarter: parsed.quarter,
+          value,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => {
+        if (a.year != b.year) {
+          return b.year - a.year;
+        }
+
+        return b.quarter - a.quarter;
+      });
+  }
+
+  return {
+    revenue: buildSeries(revenueValues),
+    epsDiluted: buildSeries(epsValues),
+  };
+}
+
+const quarterlyHistorical =
+  buildQuarterlyHistory(accumulated);
         
        finishResolve({
   debugFields: interestingKeys,
          historical,
+          quarterlyHistorical,
           symbol,
           ticker:
             accumulated.short_name ||
