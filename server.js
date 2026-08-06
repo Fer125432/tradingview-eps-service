@@ -179,6 +179,22 @@ function getAdjustedSymbol(symbol) {
   return `={"adjustment":"splits","symbol":"${secondary}"}`;
 }
 
+function candidateSymbols(input) {
+  const value = input.trim().toUpperCase();
+
+  if (value.includes(":")) {
+    return [value];
+  }
+
+  return [
+    `NASDAQ:${value}`,
+    `NYSE:${value}`,
+    `AMEX:${value}`,
+    `OTC:${value}`,
+    `BME:${value}`,
+  ];
+}
+
 function getTradingViewEps(symbol, timeoutMs = 20000) {
   return new Promise((resolve, reject) => {
     const session = randomSession();
@@ -469,6 +485,37 @@ fetchedAt: new Date().toISOString(),
   });
 }
 
+async function getTradingViewFromTicker(input) {
+  const candidates = candidateSymbols(input);
+  const errors = [];
+
+  for (const symbol of candidates) {
+    try {
+      const result = await getTradingViewEps(symbol, 8000);
+
+      const hasHistorical =
+        Array.isArray(result?.historical?.revenue) &&
+        result.historical.revenue.length > 0;
+
+      if (hasHistorical) {
+        return {
+          ...result,
+          requestedSymbol: input,
+          resolvedSymbol: symbol,
+        };
+      }
+    } catch (error) {
+      errors.push(
+        `${symbol}: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  throw new Error(
+    `No se encontró ${input}. Intentos: ${errors.join(" | ")}`
+  );
+}
+
 function requireApiKey(req, res, next) {
   if (!API_KEY) return next();
 
@@ -498,7 +545,7 @@ app.get("/health", (_req, res) => {
 app.get("/eps", requireApiKey, async (req, res) => {
   const symbol = String(req.query.symbol || "").trim().toUpperCase();
 
-  if (!validSymbol(symbol)) {
+if (!/^[A-Z0-9._:-]{1,40}$/.test(symbol)) {
     return res.status(400).json({
       error: "Símbolo ausente o inválido",
       examples: [
@@ -511,7 +558,7 @@ app.get("/eps", requireApiKey, async (req, res) => {
   }
 
   try {
-    const result = await getTradingViewEps(symbol);
+    const result = await getTradingViewFromTicker(symbol);
     res.set("Cache-Control", "public, max-age=1800");
     return res.json(result);
   } catch (error) {
