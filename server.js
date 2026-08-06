@@ -276,23 +276,7 @@ function getTradingViewEps(symbol, timeoutMs = 20000) {
 const interestingKeys = Object.keys(accumulated)
   .filter((key) => {
     const k = key.toLowerCase();
-
-    return (
-      k.endsWith("_fy_h") &&
-      (
-        k.includes("revenue") ||
-        k.includes("cost") ||
-        k.includes("income") ||
-        k.includes("earnings_per_share") ||
-        k.includes("shares") ||
-        k.includes("assets") ||
-        k.includes("liabilities") ||
-        k.includes("equity") ||
-        k.includes("debt") ||
-        k.includes("cash") ||
-        k.includes("capital_expenditure")
-      )
-    );
+return k.endsWith("_fy_h");
   })
   .sort();
 
