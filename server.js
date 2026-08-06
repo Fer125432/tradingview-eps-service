@@ -283,7 +283,7 @@ function getTradingViewEps(symbol, timeoutMs = 20000) {
     );
   })
   .sort();
-  .sort();
+
 
 
         if (!Array.isArray(accumulated.eps_estimates_fy_h)) {
