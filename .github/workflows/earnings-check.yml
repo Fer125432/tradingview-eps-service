@@ -1,0 +1,17 @@
+name: Earnings Check
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  check-earnings:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check SEC earnings
+        run: |
+          curl -fsS \
+            -H "x-api-key: ${{ secrets.API_KEY }}" \
+            "https://tradingview-eps-service.onrender.com/sync-all-earnings"
