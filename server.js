@@ -1219,7 +1219,24 @@ await sendEarningsNotification(
     results,
   });
 });
+app.get("/test-notification", requireApiKey, async (_req, res) => {
+  try {
+    await sendEarningsNotification(
+      "PRUEBA",
+      "https://www.sec.gov/"
+    );
 
+    return res.json({
+      ok: true,
+      message: "Notificación de prueba enviada"
+    });
+  } catch (error) {
+    return res.status(500).json({
+      ok: false,
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`TradingView EPS service escuchando en puerto ${PORT}`);
 });
