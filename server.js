@@ -953,7 +953,7 @@ app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
 });
 
-app.get("/eps", requireApiKey, async (req, res) => {
+app.get("/eps", async (req, res) => {
   const symbol = String(req.query.symbol || "").trim().toUpperCase();
 
 if (!/^[A-Z0-9._:-]{1,40}$/.test(symbol)) {
