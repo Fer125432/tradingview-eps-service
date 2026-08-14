@@ -746,71 +746,109 @@ async function getLatestEarningsFiling(ticker, submissions) {
     }
 
     // FOREIGN PRIVATE ISSUERS
-    if (foreignIssuer && form === "6-K") {
-      try {
-        const response = await fetch(secUrl, {
-          headers: SEC_ARCHIVE_HEADERS,
-        });
+// FOREIGN PRIVATE ISSUERS
+if (foreignIssuer && form === "6-K") {
+  try {
+    const filingIndexUrl =
+      `https://www.sec.gov/Archives/edgar/data/` +
+      `${cik}/${accessionNoDashes}/${accession}-index.html`;
 
-        if (!response.ok) {
-          continue;
-        }
+    const indexResponse = await fetch(filingIndexUrl, {
+      headers: SEC_ARCHIVE_HEADERS,
+    });
 
-        const html = await response.text();
+    if (!indexResponse.ok) {
+      continue;
+    }
 
-        const text = html
-          .replace(/<script[\s\S]*?<\/script>/gi, " ")
-          .replace(/<style[\s\S]*?<\/style>/gi, " ")
-          .replace(/<[^>]+>/g, " ")
-          .replace(/&nbsp;/gi, " ")
-          .replace(/&amp;/gi, "&")
-          .replace(/\s+/g, " ")
-          .toLowerCase();
+    const indexHtml = await indexResponse.text();
 
-        const earningsPatterns = [
-          /quarterly financial results/,
-          /quarter financial results/,
-          /reports first quarter/,
-          /reports second quarter/,
-          /reports third quarter/,
-          /reports fourth quarter/,
-          /first quarter.*financial results/,
-          /second quarter.*financial results/,
-          /third quarter.*financial results/,
-          /fourth quarter.*financial results/,
-          /earnings release/,
-          /results of operations.*quarter/,
-        ];
+    const documentRegex =
+      /href="([^"]+\.(?:htm|html))"/gi;
 
-        const matchesEarnings = earningsPatterns.some(
-          (pattern) => pattern.test(text)
-        );
+    const documents = [];
+    let match;
 
-        if (!matchesEarnings) {
-          continue;
-        }
+    while ((match = documentRegex.exec(indexHtml)) !== null) {
+      const documentName = match[1].split("/").pop();
 
-        return {
-          ticker: upperTicker,
-          filing: form,
-          items: filingItems,
-          filedAt: filingDates[i],
-          accessionNumber: accession,
-          primaryDocument,
-          secUrl,
-          earningsDetected: true,
-          detection: "6-K earnings content",
-        };
-      } catch (error) {
-        console.error(
-          `Error revisando 6-K ${upperTicker} ${accession}:`,
-          error
-        );
-
-        continue;
+      if (
+        documentName &&
+        !documents.includes(documentName)
+      ) {
+        documents.push(documentName);
       }
     }
+
+    for (const documentName of documents) {
+      const documentUrl =
+        `https://www.sec.gov/Archives/edgar/data/` +
+        `${cik}/${accessionNoDashes}/${documentName}`;
+
+      const documentResponse = await fetch(documentUrl, {
+        headers: SEC_ARCHIVE_HEADERS,
+      });
+
+      if (!documentResponse.ok) {
+        continue;
+      }
+
+      const html = await documentResponse.text();
+
+      const text = html
+        .replace(/<script[\s\S]*?<\/script>/gi, " ")
+        .replace(/<style[\s\S]*?<\/style>/gi, " ")
+        .replace(/<[^>]+>/g, " ")
+        .replace(/&nbsp;/gi, " ")
+        .replace(/&amp;/gi, "&")
+        .replace(/\s+/g, " ")
+        .toLowerCase();
+
+      const earningsPatterns = [
+        /quarterly financial results/,
+        /quarter financial results/,
+        /reports first quarter/,
+        /reports second quarter/,
+        /reports third quarter/,
+        /reports fourth quarter/,
+        /first quarter.*financial results/,
+        /second quarter.*financial results/,
+        /third quarter.*financial results/,
+        /fourth quarter.*financial results/,
+        /earnings release/,
+        /results of operations.*quarter/,
+      ];
+
+      const matchesEarnings = earningsPatterns.some(
+        (pattern) => pattern.test(text)
+      );
+
+      if (!matchesEarnings) {
+        continue;
+      }
+
+      return {
+        ticker: upperTicker,
+        filing: form,
+        items: filingItems,
+        filedAt: filingDates[i],
+        accessionNumber: accession,
+        primaryDocument,
+        earningsDocument: documentName,
+        secUrl: documentUrl,
+        earningsDetected: true,
+        detection: "6-K earnings exhibit",
+      };
+    }
+  } catch (error) {
+    console.error(
+      `Error revisando 6-K ${upperTicker} ${accession}:`,
+      error
+    );
+
+    continue;
   }
+}
 
   return {
     ticker: upperTicker,
