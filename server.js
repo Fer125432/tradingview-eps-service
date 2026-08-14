@@ -1089,7 +1089,10 @@ app.get("/sync-earnings", requireApiKey, async (req, res) => {
         createdAt: new Date().toISOString(),
         sent: false,
       });
-
+await sendEarningsNotification(
+  ticker,
+  latest.secUrl || ""
+);
     return res.json({
       ticker,
       earningsDetected: true,
@@ -1184,7 +1187,10 @@ app.get("/sync-all-earnings", requireApiKey, async (_req, res) => {
           createdAt: new Date().toISOString(),
           sent: false,
         });
-
+await sendEarningsNotification(
+  ticker,
+  latest.secUrl || ""
+);
       results.push({
         ticker,
         earningsDetected: true,
