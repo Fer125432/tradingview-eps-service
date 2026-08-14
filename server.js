@@ -841,13 +841,14 @@ async function getLatestEarningsFiling(ticker, submissions) {
         }
       } catch (error) {
         console.error(
-          `Error revisando 6-K ${upperTicker} ${accessession}:`,
+         `Error revisando 6-K ${upperTicker} ${accession}:`,
           error
         );
 
-        continue;
+              continue;
       }
     }
+  }  // <-- AÑADE ESTA
 
   return {
     ticker: upperTicker,
