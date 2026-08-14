@@ -745,110 +745,109 @@ async function getLatestEarningsFiling(ticker, submissions) {
       };
     }
 
-    // FOREIGN PRIVATE ISSUERS
-// FOREIGN PRIVATE ISSUERS
-if (foreignIssuer && form === "6-K") {
-  try {
-    const filingIndexUrl =
-      `https://www.sec.gov/Archives/edgar/data/` +
-      `${cik}/${accessionNoDashes}/${accession}-index.html`;
+     // FOREIGN PRIVATE ISSUERS
+    if (foreignIssuer && form === "6-K") {
+      try {
+        const filingIndexUrl =
+          `https://www.sec.gov/Archives/edgar/data/` +
+          `${cik}/${accessionNoDashes}/${accession}-index.html`;
 
-    const indexResponse = await fetch(filingIndexUrl, {
-      headers: SEC_ARCHIVE_HEADERS,
-    });
+        const indexResponse = await fetch(filingIndexUrl, {
+          headers: SEC_ARCHIVE_HEADERS,
+        });
 
-    if (!indexResponse.ok) {
-      continue;
-    }
+        if (!indexResponse.ok) {
+          continue;
+        }
 
-    const indexHtml = await indexResponse.text();
+        const indexHtml = await indexResponse.text();
 
-    const documentRegex =
-      /href="([^"]+\.(?:htm|html))"/gi;
+        const documentRegex =
+          /href="([^"]+\.(?:htm|html))"/gi;
 
-    const documents = [];
-    let match;
+        const documents = [];
+        let match;
 
-    while ((match = documentRegex.exec(indexHtml)) !== null) {
-      const documentName = match[1].split("/").pop();
+        while ((match = documentRegex.exec(indexHtml)) !== null) {
+          const documentName = match[1].split("/").pop();
 
-      if (
-        documentName &&
-        !documents.includes(documentName)
-      ) {
-        documents.push(documentName);
-      }
-    }
+          if (
+            documentName &&
+            !documents.includes(documentName)
+          ) {
+            documents.push(documentName);
+          }
+        }
 
-    for (const documentName of documents) {
-      const documentUrl =
-        `https://www.sec.gov/Archives/edgar/data/` +
-        `${cik}/${accessionNoDashes}/${documentName}`;
+        for (const documentName of documents) {
+          const documentUrl =
+            `https://www.sec.gov/Archives/edgar/data/` +
+            `${cik}/${accessionNoDashes}/${documentName}`;
 
-      const documentResponse = await fetch(documentUrl, {
-        headers: SEC_ARCHIVE_HEADERS,
-      });
+          const documentResponse = await fetch(documentUrl, {
+            headers: SEC_ARCHIVE_HEADERS,
+          });
 
-      if (!documentResponse.ok) {
+          if (!documentResponse.ok) {
+            continue;
+          }
+
+          const html = await documentResponse.text();
+
+          const text = html
+            .replace(/<script[\s\S]*?<\/script>/gi, " ")
+            .replace(/<style[\s\S]*?<\/style>/gi, " ")
+            .replace(/<[^>]+>/g, " ")
+            .replace(/&nbsp;/gi, " ")
+            .replace(/&amp;/gi, "&")
+            .replace(/\s+/g, " ")
+            .toLowerCase();
+
+          const earningsPatterns = [
+            /quarterly financial results/,
+            /quarter financial results/,
+            /reports first quarter/,
+            /reports second quarter/,
+            /reports third quarter/,
+            /reports fourth quarter/,
+            /first quarter.*financial results/,
+            /second quarter.*financial results/,
+            /third quarter.*financial results/,
+            /fourth quarter.*financial results/,
+            /earnings release/,
+            /results of operations.*quarter/,
+          ];
+
+          const matchesEarnings = earningsPatterns.some(
+            (pattern) => pattern.test(text)
+          );
+
+          if (!matchesEarnings) {
+            continue;
+          }
+
+          return {
+            ticker: upperTicker,
+            filing: form,
+            items: filingItems,
+            filedAt: filingDates[i],
+            accessionNumber: accession,
+            primaryDocument,
+            earningsDocument: documentName,
+            secUrl: documentUrl,
+            earningsDetected: true,
+            detection: "6-K earnings exhibit",
+          };
+        }
+      } catch (error) {
+        console.error(
+          `Error revisando 6-K ${upperTicker} ${accessession}:`,
+          error
+        );
+
         continue;
       }
-
-      const html = await documentResponse.text();
-
-      const text = html
-        .replace(/<script[\s\S]*?<\/script>/gi, " ")
-        .replace(/<style[\s\S]*?<\/style>/gi, " ")
-        .replace(/<[^>]+>/g, " ")
-        .replace(/&nbsp;/gi, " ")
-        .replace(/&amp;/gi, "&")
-        .replace(/\s+/g, " ")
-        .toLowerCase();
-
-      const earningsPatterns = [
-        /quarterly financial results/,
-        /quarter financial results/,
-        /reports first quarter/,
-        /reports second quarter/,
-        /reports third quarter/,
-        /reports fourth quarter/,
-        /first quarter.*financial results/,
-        /second quarter.*financial results/,
-        /third quarter.*financial results/,
-        /fourth quarter.*financial results/,
-        /earnings release/,
-        /results of operations.*quarter/,
-      ];
-
-      const matchesEarnings = earningsPatterns.some(
-        (pattern) => pattern.test(text)
-      );
-
-      if (!matchesEarnings) {
-        continue;
-      }
-
-      return {
-        ticker: upperTicker,
-        filing: form,
-        items: filingItems,
-        filedAt: filingDates[i],
-        accessionNumber: accession,
-        primaryDocument,
-        earningsDocument: documentName,
-        secUrl: documentUrl,
-        earningsDetected: true,
-        detection: "6-K earnings exhibit",
-      };
     }
-  } catch (error) {
-    console.error(
-      `Error revisando 6-K ${upperTicker} ${accession}:`,
-      error
-    );
-
-    continue;
-  }
-}
 
   return {
     ticker: upperTicker,
