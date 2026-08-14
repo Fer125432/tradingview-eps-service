@@ -645,6 +645,10 @@ const SEC_HEADERS = {
   "Accept-Encoding": "gzip, deflate",
   "Host": "data.sec.gov",
 };
+const SEC_ARCHIVE_HEADERS = {
+  "User-Agent": "MiFinanzasApp admin@example.com",
+  "Accept-Encoding": "gzip, deflate",
+};
 
 // Ticker -> CIK
 // Primero probamos con las empresas que ya hemos verificado.
@@ -684,12 +688,14 @@ async function getSecSubmissions(ticker) {
   return response.json();
 }
 
-function getLatestEarningsFiling(ticker, submissions) {
+async function getLatestEarningsFiling(ticker, submissions) {
   const recent = submissions?.filings?.recent;
 
   if (!recent) {
     throw new Error("SEC no devolvió filings recientes");
   }
+
+  const upperTicker = ticker.toUpperCase();
 
   const forms = recent.form || [];
   const accessionNumbers = recent.accessionNumber || [];
@@ -697,18 +703,27 @@ function getLatestEarningsFiling(ticker, submissions) {
   const primaryDocuments = recent.primaryDocument || [];
   const items = recent.items || [];
 
-  const foreignIssuer = ["DLO", "TSM"].includes(
-    ticker.toUpperCase()
-  );
+  const foreignIssuer = ["DLO", "TSM"].includes(upperTicker);
 
   for (let i = 0; i < forms.length; i++) {
     const form = forms[i];
     const filingItems = String(items[i] || "");
 
-    let earningsDetected = false;
+    const accession = accessionNumbers[i];
+    const primaryDocument = primaryDocuments[i];
 
-    // Empresas estadounidenses:
-    // 8-K + Item 2.02 = publicación de resultados.
+    if (!accession || !primaryDocument) {
+      continue;
+    }
+
+    const accessionNoDashes = accession.replaceAll("-", "");
+    const cik = SEC_COMPANIES[upperTicker];
+
+    const secUrl =
+      `https://www.sec.gov/Archives/edgar/data/` +
+      `${cik}/${accessionNoDashes}/${primaryDocument}`;
+
+    // EMPRESAS USA
     if (
       !foreignIssuer &&
       form === "8-K" &&
@@ -717,56 +732,95 @@ function getLatestEarningsFiling(ticker, submissions) {
         .map((item) => item.trim())
         .includes("2.02")
     ) {
-      earningsDetected = true;
+      return {
+        ticker: upperTicker,
+        filing: form,
+        items: filingItems,
+        filedAt: filingDates[i],
+        accessionNumber: accession,
+        primaryDocument,
+        secUrl,
+        earningsDetected: true,
+        detection: "8-K Item 2.02",
+      };
     }
 
-    // Foreign Private Issuers:
-    // De momento identificamos sus 6-K candidatos.
-    // Después añadiremos el filtro del documento earnings release.
-    if (
-      foreignIssuer &&
-      form === "6-K"
-    ) {
-      earningsDetected = true;
+    // FOREIGN PRIVATE ISSUERS
+    if (foreignIssuer && form === "6-K") {
+      try {
+        const response = await fetch(secUrl, {
+          headers: SEC_ARCHIVE_HEADERS,
+        });
+
+        if (!response.ok) {
+          continue;
+        }
+
+        const html = await response.text();
+
+        const text = html
+          .replace(/<script[\s\S]*?<\/script>/gi, " ")
+          .replace(/<style[\s\S]*?<\/style>/gi, " ")
+          .replace(/<[^>]+>/g, " ")
+          .replace(/&nbsp;/gi, " ")
+          .replace(/&amp;/gi, "&")
+          .replace(/\s+/g, " ")
+          .toLowerCase();
+
+        const earningsPatterns = [
+          /quarterly financial results/,
+          /quarter financial results/,
+          /reports first quarter/,
+          /reports second quarter/,
+          /reports third quarter/,
+          /reports fourth quarter/,
+          /first quarter.*financial results/,
+          /second quarter.*financial results/,
+          /third quarter.*financial results/,
+          /fourth quarter.*financial results/,
+          /earnings release/,
+          /results of operations.*quarter/,
+        ];
+
+        const matchesEarnings = earningsPatterns.some(
+          (pattern) => pattern.test(text)
+        );
+
+        if (!matchesEarnings) {
+          continue;
+        }
+
+        return {
+          ticker: upperTicker,
+          filing: form,
+          items: filingItems,
+          filedAt: filingDates[i],
+          accessionNumber: accession,
+          primaryDocument,
+          secUrl,
+          earningsDetected: true,
+          detection: "6-K earnings content",
+        };
+      } catch (error) {
+        console.error(
+          `Error revisando 6-K ${upperTicker} ${accession}:`,
+          error
+        );
+
+        continue;
+      }
     }
-
-    if (!earningsDetected) continue;
-
-    const accession = accessionNumbers[i];
-    const accessionNoDashes = accession.replaceAll("-", "");
-    const cik = SEC_COMPANIES[ticker.toUpperCase()];
-    const primaryDocument = primaryDocuments[i];
-
-    const secUrl =
-      `https://www.sec.gov/Archives/edgar/data/` +
-      `${cik}/${accessionNoDashes}/${primaryDocument}`;
-
-    return {
-      ticker: ticker.toUpperCase(),
-      filing: form,
-      items: filingItems,
-      filedAt: filingDates[i],
-      accessionNumber: accession,
-      primaryDocument,
-      secUrl,
-      earningsDetected: true,
-      detection:
-        foreignIssuer
-          ? "6-K candidate"
-          : "8-K Item 2.02",
-    };
   }
 
   return {
-    ticker: ticker.toUpperCase(),
+    ticker: upperTicker,
     earningsDetected: false,
   };
 }
-
 async function getLatestSecEarnings(ticker) {
   const submissions = await getSecSubmissions(ticker);
 
-  return getLatestEarningsFiling(
+  return await getLatestEarningsFiling(
     ticker,
     submissions
   );
