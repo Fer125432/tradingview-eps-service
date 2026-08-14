@@ -890,7 +890,43 @@ async function getLatestSecEarnings(ticker) {
     submissions
   );
 }
+async function sendEarningsNotification(ticker, secUrl) {
+  if (!db) return;
 
+  const snapshot = await db.collection("fcm_tokens").get();
+
+  if (snapshot.empty) {
+    console.log("No hay tokens FCM registrados");
+    return;
+  }
+
+  const tokens = snapshot.docs
+    .map((doc) => doc.data().token)
+    .filter(Boolean);
+
+  if (tokens.length === 0) {
+    console.log("No hay tokens FCM válidos");
+    return;
+  }
+
+  const message = {
+    notification: {
+      title: `📊 Nuevo informe trimestral: ${ticker}`,
+      body: `${ticker} acaba de publicar nuevos resultados.`,
+    },
+    data: {
+      ticker,
+      secUrl: secUrl || "",
+    },
+    tokens,
+  };
+
+  const response = await getMessaging().sendEachForMulticast(message);
+
+  console.log(
+    `Notificación ${ticker}: ${response.successCount} enviada(s), ${response.failureCount} fallo(s)`
+  );
+}
 function requireApiKey(req, res, next) {
   if (!API_KEY) return next();
 
