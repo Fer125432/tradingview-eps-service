@@ -1073,6 +1073,110 @@ app.get("/sync-earnings", requireApiKey, async (req, res) => {
     });
   }
 });
+app.get("/sync-all-earnings", requireApiKey, async (_req, res) => {
+  if (!db) {
+    return res.status(500).json({
+      error: "Firebase Admin no inicializado",
+    });
+  }
+
+  const tickers = Object.keys(SEC_COMPANIES);
+  const results = [];
+
+  for (const ticker of tickers) {
+    try {
+      const latest = await getLatestSecEarnings(ticker);
+
+      if (!latest?.earningsDetected) {
+        results.push({
+          ticker,
+          earningsDetected: false,
+          updated: false,
+        });
+
+        continue;
+      }
+
+      const docRef = db
+        .collection("earnings_filings")
+        .doc(ticker);
+
+      const snapshot = await docRef.get();
+
+      const previous = snapshot.exists
+        ? snapshot.data()
+        : null;
+
+      const previousAccession =
+        previous?.accessionNumber || null;
+
+      const currentAccession =
+        latest.accessionNumber || null;
+
+      if (previousAccession === currentAccession) {
+        results.push({
+          ticker,
+          earningsDetected: true,
+          updated: false,
+          newEarnings: false,
+          accessionNumber: currentAccession,
+        });
+
+        continue;
+      }
+
+      await docRef.set({
+        accessionNumber: currentAccession,
+        filedAt: latest.filedAt || null,
+        filing: String(latest.filing || "").trim(),
+        secUrl: latest.secUrl || null,
+        earningsDocument: latest.earningsDocument || null,
+        primaryDocument: latest.primaryDocument || null,
+        detection: latest.detection || null,
+        updatedAt: new Date().toISOString(),
+      });
+
+      await db
+        .collection("earnings_alerts")
+        .add({
+          ticker,
+          accessionNumber: currentAccession,
+          filedAt: latest.filedAt || null,
+          filing: String(latest.filing || "").trim(),
+          secUrl: latest.secUrl || null,
+          createdAt: new Date().toISOString(),
+          sent: false,
+        });
+
+      results.push({
+        ticker,
+        earningsDetected: true,
+        updated: true,
+        newEarnings: true,
+        previousAccession,
+        currentAccession,
+      });
+    } catch (error) {
+      results.push({
+        ticker,
+        error:
+          error instanceof Error
+            ? error.message
+            : String(error),
+      });
+    }
+  }
+
+  return res.json({
+    ok: true,
+    checked: tickers.length,
+    newEarnings: results.filter(
+      (item) => item.newEarnings === true
+    ).length,
+    results,
+  });
+});
+
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`TradingView EPS service escuchando en puerto ${PORT}`);
 });
