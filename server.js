@@ -687,16 +687,67 @@ const SEC_COMPANIES = {
   TSM: 1046179,
 };
 
+let SEC_TICKER_MAP = null;
+
+async function getSecTickerMap() {
+  if (SEC_TICKER_MAP) return SEC_TICKER_MAP;
+
+  const response = await fetch(
+    "https://www.sec.gov/files/company_tickers.json",
+    {
+      headers: SEC_HEADERS,
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `SEC company_tickers respondió HTTP ${response.status}`
+    );
+  }
+
+  const data = await response.json();
+  const map = {};
+
+  for (const item of Object.values(data)) {
+    const ticker = String(item.ticker || "")
+      .trim()
+      .toUpperCase();
+
+    const cik = Number(item.cik_str);
+
+    if (ticker && Number.isInteger(cik)) {
+      map[ticker] = cik;
+    }
+  }
+
+  SEC_TICKER_MAP = map;
+
+  return map;
+}
+
+async function getSecCik(ticker) {
+  const upperTicker = ticker.toUpperCase();
+
+  if (SEC_COMPANIES[upperTicker]) {
+    return SEC_COMPANIES[upperTicker];
+  }
+
+  const map = await getSecTickerMap();
+  return map[upperTicker] || null;
+}
+
 function padCik(cik) {
   return String(cik).padStart(10, "0");
 }
 
 async function getSecSubmissions(ticker) {
   const upperTicker = ticker.toUpperCase();
-  const cik = SEC_COMPANIES[upperTicker];
+  const cik = await getSecCik(upperTicker);
 
   if (!cik) {
-    throw new Error(`Ticker ${upperTicker} todavía no configurado`);
+    throw new Error(
+      `Ticker ${upperTicker} no encontrado en SEC`
+    );
   }
 
   const url =
@@ -744,7 +795,7 @@ async function getLatestEarningsFiling(ticker, submissions) {
     }
 
     const accessionNoDashes = accession.replaceAll("-", "");
-    const cik = SEC_COMPANIES[upperTicker];
+    const cik = await getSecCik(upperTicker);
 
     const secUrl =
       `https://www.sec.gov/Archives/edgar/data/` +
@@ -893,6 +944,8 @@ async function getLatestSecEarnings(ticker) {
 async function sendEarningsNotification(ticker, secUrl) {
   if (!db) return;
 
+  const upperTicker = ticker.toUpperCase();
+
   const snapshot = await db.collection("fcm_tokens").get();
 
   if (snapshot.empty) {
@@ -901,21 +954,37 @@ async function sendEarningsNotification(ticker, secUrl) {
   }
 
   const tokens = snapshot.docs
-    .map((doc) => doc.data().token)
+    .map((doc) => {
+      const data = doc.data();
+
+      const tickers = Array.isArray(data.tickers)
+        ? data.tickers
+            .map((item) => String(item).toUpperCase().trim())
+            .filter(Boolean)
+        : [];
+
+      if (!tickers.includes(upperTicker)) {
+        return null;
+      }
+
+      return data.token;
+    })
     .filter(Boolean);
 
   if (tokens.length === 0) {
-    console.log("No hay tokens FCM válidos");
+    console.log(
+      `No hay usuarios suscritos a ${upperTicker}`
+    );
     return;
   }
 
   const message = {
     notification: {
-      title: `📊 Nuevo informe trimestral: ${ticker}`,
-      body: `${ticker} acaba de publicar nuevos resultados.`,
+      title: `📊 Nuevo informe trimestral: ${upperTicker}`,
+      body: `${upperTicker} acaba de publicar nuevos resultados.`,
     },
     data: {
-      ticker,
+      ticker: upperTicker,
       secUrl: secUrl || "",
     },
     tokens,
@@ -924,7 +993,9 @@ async function sendEarningsNotification(ticker, secUrl) {
   const response = await getMessaging().sendEachForMulticast(message);
 
   console.log(
-    `Notificación ${ticker}: ${response.successCount} enviada(s), ${response.failureCount} fallo(s)`
+    `Notificación ${upperTicker}: ` +
+      `${response.successCount} enviada(s), ` +
+      `${response.failureCount} fallo(s)`
   );
 }
 function requireApiKey(req, res, next) {
@@ -1120,8 +1191,30 @@ app.get("/sync-all-earnings", requireApiKey, async (_req, res) => {
     });
   }
 
-  const tickers = Object.keys(SEC_COMPANIES);
-  const results = [];
+const tokenSnapshot = await db
+  .collection("fcm_tokens")
+  .get();
+
+const tickerSet = new Set();
+
+for (const doc of tokenSnapshot.docs) {
+  const data = doc.data();
+
+  if (!Array.isArray(data.tickers)) continue;
+
+  for (const ticker of data.tickers) {
+    const normalized = String(ticker)
+      .trim()
+      .toUpperCase();
+
+    if (/^[A-Z0-9.-]{1,20}$/.test(normalized)) {
+      tickerSet.add(normalized);
+    }
+  }
+}
+
+const tickers = [...tickerSet].sort();
+const results = [];
 
   for (const ticker of tickers) {
     try {
