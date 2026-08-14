@@ -3,6 +3,7 @@ import WebSocket from "ws";
 import fs from "fs";
 import { initializeApp, cert } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
+import { getMessaging } from "firebase-admin/messaging";
 const app = express();
 const PORT = Number(process.env.PORT || 10000);
 const API_KEY = process.env.API_KEY || "";
