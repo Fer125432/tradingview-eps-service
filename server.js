@@ -636,6 +636,141 @@ async function getTradingViewFromTicker(input) {
     `No se encontró ${input}. Intentos: ${errors.join(" | ")}`
   );
 }
+// ============================================================
+// SEC EARNINGS DETECTOR
+// ============================================================
+
+const SEC_HEADERS = {
+  "User-Agent": "MiFinanzasApp admin@example.com",
+  "Accept-Encoding": "gzip, deflate",
+  "Host": "data.sec.gov",
+};
+
+// Ticker -> CIK
+// Primero probamos con las empresas que ya hemos verificado.
+const SEC_COMPANIES = {
+  AMD: 2488,
+  AMZN: 1018724,
+  HIMS: 1773751,
+  DLO: 1846832,
+  TSM: 1046179,
+};
+
+function padCik(cik) {
+  return String(cik).padStart(10, "0");
+}
+
+async function getSecSubmissions(ticker) {
+  const upperTicker = ticker.toUpperCase();
+  const cik = SEC_COMPANIES[upperTicker];
+
+  if (!cik) {
+    throw new Error(`Ticker ${upperTicker} todavía no configurado`);
+  }
+
+  const url =
+    `https://data.sec.gov/submissions/CIK${padCik(cik)}.json`;
+
+  const response = await fetch(url, {
+    headers: SEC_HEADERS,
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `SEC respondió HTTP ${response.status}`
+    );
+  }
+
+  return response.json();
+}
+
+function getLatestEarningsFiling(ticker, submissions) {
+  const recent = submissions?.filings?.recent;
+
+  if (!recent) {
+    throw new Error("SEC no devolvió filings recientes");
+  }
+
+  const forms = recent.form || [];
+  const accessionNumbers = recent.accessionNumber || [];
+  const filingDates = recent.filingDate || [];
+  const primaryDocuments = recent.primaryDocument || [];
+  const items = recent.items || [];
+
+  const foreignIssuer = ["DLO", "TSM"].includes(
+    ticker.toUpperCase()
+  );
+
+  for (let i = 0; i < forms.length; i++) {
+    const form = forms[i];
+    const filingItems = String(items[i] || "");
+
+    let earningsDetected = false;
+
+    // Empresas estadounidenses:
+    // 8-K + Item 2.02 = publicación de resultados.
+    if (
+      !foreignIssuer &&
+      form === "8-K" &&
+      filingItems
+        .split(",")
+        .map((item) => item.trim())
+        .includes("2.02")
+    ) {
+      earningsDetected = true;
+    }
+
+    // Foreign Private Issuers:
+    // De momento identificamos sus 6-K candidatos.
+    // Después añadiremos el filtro del documento earnings release.
+    if (
+      foreignIssuer &&
+      form === "6-K"
+    ) {
+      earningsDetected = true;
+    }
+
+    if (!earningsDetected) continue;
+
+    const accession = accessionNumbers[i];
+    const accessionNoDashes = accession.replaceAll("-", "");
+    const cik = SEC_COMPANIES[ticker.toUpperCase()];
+    const primaryDocument = primaryDocuments[i];
+
+    const secUrl =
+      `https://www.sec.gov/Archives/edgar/data/` +
+      `${cik}/${accessionNoDashes}/${primaryDocument}`;
+
+    return {
+      ticker: ticker.toUpperCase(),
+      filing: form,
+      items: filingItems,
+      filedAt: filingDates[i],
+      accessionNumber: accession,
+      primaryDocument,
+      secUrl,
+      earningsDetected: true,
+      detection:
+        foreignIssuer
+          ? "6-K candidate"
+          : "8-K Item 2.02",
+    };
+  }
+
+  return {
+    ticker: ticker.toUpperCase(),
+    earningsDetected: false,
+  };
+}
+
+async function getLatestSecEarnings(ticker) {
+  const submissions = await getSecSubmissions(ticker);
+
+  return getLatestEarningsFiling(
+    ticker,
+    submissions
+  );
+}
 
 function requireApiKey(req, res, next) {
   if (!API_KEY) return next();
@@ -687,6 +822,35 @@ if (!/^[A-Z0-9._:-]{1,40}$/.test(symbol)) {
       error: "No se pudieron obtener las estimaciones de TradingView",
       symbol,
       detail: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+app.get("/earnings", requireApiKey, async (req, res) => {
+  const ticker = String(req.query.symbol || "")
+    .trim()
+    .toUpperCase();
+
+  if (!/^[A-Z0-9.-]{1,20}$/.test(ticker)) {
+    return res.status(400).json({
+      error: "Ticker ausente o inválido",
+      example: "/earnings?symbol=AMD",
+    });
+  }
+
+  try {
+    const result = await getLatestSecEarnings(ticker);
+
+    res.set("Cache-Control", "no-store");
+
+    return res.json(result);
+  } catch (error) {
+    return res.status(502).json({
+      error: "No se pudo consultar SEC",
+      ticker,
+      detail:
+        error instanceof Error
+          ? error.message
+          : String(error),
     });
   }
 });
