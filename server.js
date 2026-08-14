@@ -1,8 +1,34 @@
 import express from "express";
 import WebSocket from "ws";
+import fs from "fs";
+import { initializeApp, cert } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
 const app = express();
 const PORT = Number(process.env.PORT || 10000);
 const API_KEY = process.env.API_KEY || "";
+const FIREBASE_SERVICE_ACCOUNT_PATH =
+  "/etc/secrets/firebase-service-account.json";
+
+let db = null;
+
+try {
+  const serviceAccount = JSON.parse(
+    fs.readFileSync(FIREBASE_SERVICE_ACCOUNT_PATH, "utf8")
+  );
+
+  initializeApp({
+    credential: cert(serviceAccount),
+  });
+
+  db = getFirestore();
+
+  console.log("Firebase Admin conectado correctamente");
+} catch (error) {
+  console.error(
+    "No se pudo inicializar Firebase Admin:",
+    error instanceof Error ? error.message : String(error)
+  );
+}
 
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -946,7 +972,42 @@ app.get("/earnings", requireApiKey, async (req, res) => {
     });
   }
 });
+app.get("/firebase-test", requireApiKey, async (_req, res) => {
+  if (!db) {
+    return res.status(500).json({
+      ok: false,
+      error: "Firebase Admin no inicializado",
+    });
+  }
 
+  try {
+    const snapshot = await db
+      .collection("earnings_filings")
+      .doc("AMD")
+      .get();
+
+    if (!snapshot.exists) {
+      return res.status(404).json({
+        ok: false,
+        error: "Documento AMD no encontrado",
+      });
+    }
+
+    return res.json({
+      ok: true,
+      id: snapshot.id,
+      data: snapshot.data(),
+    });
+  } catch (error) {
+    return res.status(500).json({
+      ok: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : String(error),
+    });
+  }
+});
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`TradingView EPS service escuchando en puerto ${PORT}`);
 });
