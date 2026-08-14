@@ -972,36 +972,101 @@ app.get("/earnings", requireApiKey, async (req, res) => {
     });
   }
 });
-app.get("/firebase-test", requireApiKey, async (_req, res) => {
+app.get("/sync-earnings", requireApiKey, async (req, res) => {
+  const ticker = String(req.query.symbol || "")
+    .trim()
+    .toUpperCase();
+
+  if (!/^[A-Z0-9.-]{1,20}$/.test(ticker)) {
+    return res.status(400).json({
+      error: "Ticker ausente o inválido",
+      example: "/sync-earnings?symbol=AMD",
+    });
+  }
+
   if (!db) {
     return res.status(500).json({
-      ok: false,
       error: "Firebase Admin no inicializado",
     });
   }
 
   try {
-    const snapshot = await db
-      .collection("earnings_filings")
-      .doc("AMD")
-      .get();
+    const latest = await getLatestSecEarnings(ticker);
 
-    if (!snapshot.exists) {
-      return res.status(404).json({
-        ok: false,
-        error: "Documento AMD no encontrado",
+    if (!latest?.earningsDetected) {
+      return res.json({
+        ticker,
+        earningsDetected: false,
+        updated: false,
       });
     }
 
+    const docRef = db
+      .collection("earnings_filings")
+      .doc(ticker);
+
+    const snapshot = await docRef.get();
+
+    const previous = snapshot.exists
+      ? snapshot.data()
+      : null;
+
+    const previousAccession =
+      previous?.accessionNumber || null;
+
+    const currentAccession =
+      latest.accessionNumber || null;
+
+    const isNew =
+      previousAccession !== currentAccession;
+
+    if (!isNew) {
+      return res.json({
+        ticker,
+        earningsDetected: true,
+        updated: false,
+        newEarnings: false,
+        accessionNumber: currentAccession,
+      });
+    }
+
+    await docRef.set({
+      accessionNumber: currentAccession,
+      filedAt: latest.filedAt || null,
+      filing: String(latest.filing || "").trim(),
+      secUrl: latest.secUrl || null,
+      earningsDocument: latest.earningsDocument || null,
+      primaryDocument: latest.primaryDocument || null,
+      detection: latest.detection || null,
+      updatedAt: new Date().toISOString(),
+    });
+
+    await db
+      .collection("earnings_alerts")
+      .add({
+        ticker,
+        accessionNumber: currentAccession,
+        filedAt: latest.filedAt || null,
+        filing: String(latest.filing || "").trim(),
+        secUrl: latest.secUrl || null,
+        createdAt: new Date().toISOString(),
+        sent: false,
+      });
+
     return res.json({
-      ok: true,
-      id: snapshot.id,
-      data: snapshot.data(),
+      ticker,
+      earningsDetected: true,
+      updated: true,
+      newEarnings: true,
+      previousAccession,
+      currentAccession,
+      secUrl: latest.secUrl || null,
     });
   } catch (error) {
     return res.status(500).json({
-      ok: false,
-      error:
+      error: "No se pudo sincronizar earnings",
+      ticker,
+      detail:
         error instanceof Error
           ? error.message
           : String(error),
