@@ -323,9 +323,17 @@ return k.endsWith("_fq_h");
   })
   .sort();
 
-        if (!Array.isArray(accumulated.eps_estimates_fy_h)) {
-          continue;
-        }
+     const hasAnnualEpsEstimates =
+  Array.isArray(accumulated.eps_estimates_fy_h);
+
+const hasAnnualHistory =
+  Array.isArray(accumulated.total_revenue_fy_h) &&
+  accumulated.total_revenue_fy_h.length > 0;
+
+if (!hasAnnualEpsEstimates && !hasAnnualHistory) {
+  continue;
+}
+        
 
         const annualEstimates = normalizeEpsEstimates(
           accumulated.eps_estimates_fy_h
