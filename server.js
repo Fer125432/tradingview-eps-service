@@ -562,6 +562,8 @@ const quarterlyHistorical =
        finishResolve({
   debugFields: interestingKeys,
          debugSectorFields,
+         sector: accumulated.sector ?? null,
+industry: accumulated.industry ?? null,
          historical,
           quarterlyHistorical,
           symbol,
