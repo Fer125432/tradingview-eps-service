@@ -323,6 +323,13 @@ return k.endsWith("_fq_h");
   })
   .sort();
 
+const debugSectorFields = Object.keys(accumulated)
+  .filter((key) => {
+    const k = key.toLowerCase();
+    return k.includes("sector") || k.includes("industry");
+  })
+  .sort();
+        
      const hasAnnualEpsEstimates =
   Array.isArray(accumulated.eps_estimates_fy_h);
 
@@ -554,6 +561,7 @@ const quarterlyHistorical =
         
        finishResolve({
   debugFields: interestingKeys,
+         debugSectorFields,
          historical,
           quarterlyHistorical,
           symbol,
