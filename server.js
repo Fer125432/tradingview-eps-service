@@ -562,9 +562,14 @@ const quarterlyHistorical =
        finishResolve({
   debugFields: interestingKeys,
          debugSectorFields,
-         sector: accumulated.sector ?? null,
+      sector: accumulated.sector ?? null,
 industry: accumulated.industry ?? null,
-         historical,
+marketCap: numberOrNull(
+  Array.isArray(accumulated.market_cap_basic_fq_h)
+    ? accumulated.market_cap_basic_fq_h[0]
+    : accumulated.market_cap_basic_fq_h
+),
+historical,
           quarterlyHistorical,
           symbol,
           ticker:
