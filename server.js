@@ -581,11 +581,6 @@ historical,
   accumulated.local_description ||
   accumulated.short_description ||
   null,
-
-businessDescription:
-  accumulated.business_description ||
-  accumulated.business_description_fq ||
-  null,
           currency:
             accumulated.currency_code ||
             accumulated.fundamental_currency_code ||
