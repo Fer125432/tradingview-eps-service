@@ -569,6 +569,21 @@ const quarterlyHistorical =
         
    finishResolve({
   debugFields: interestingKeys,
+
+  debugQuarterlyEps: {
+    fiscal_period_fq_h:
+      accumulated.fiscal_period_fq_h ?? null,
+
+    earnings_per_share_fq_h:
+      accumulated.earnings_per_share_fq_h ?? null,
+
+    earnings_per_share_diluted_fq_h:
+      accumulated.earnings_per_share_diluted_fq_h ?? null,
+
+    eps_estimates_fq_h:
+      accumulated.eps_estimates_fq_h ?? null,
+  },
+
   debugSectorFields,
   sector: accumulated.sector ?? null,
 industry: accumulated.industry ?? null,
