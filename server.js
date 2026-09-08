@@ -1050,7 +1050,7 @@ if (!/^[A-Z0-9._:-]{1,40}$/.test(symbol)) {
 
   try {
     const result = await getTradingViewFromTicker(symbol);
-    res.set("Cache-Control", "public, max-age=1800");
+    res.set("Cache-Control", "no-store");
     return res.json(result);
   } catch (error) {
     return res.status(502).json({
