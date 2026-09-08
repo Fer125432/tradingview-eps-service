@@ -316,19 +316,7 @@ function getTradingViewEps(symbol, timeoutMs = 20000) {
         const values = message.p[1].v;
         accumulated = { ...accumulated, ...values };
 
-const interestingKeys = Object.keys(accumulated)
-  .filter((key) => {
-    const k = key.toLowerCase();
-return k.endsWith("_fq_h");
-  })
-  .sort();
 
-const debugSectorFields = Object.keys(accumulated)
-  .filter((key) => {
-    const k = key.toLowerCase();
-    return k.includes("sector") || k.includes("industry");
-  })
-  .sort();
         
      const hasAnnualEpsEstimates =
   Array.isArray(accumulated.eps_estimates_fy_h);
@@ -559,23 +547,7 @@ const quarterlyHistorical =
   buildQuarterlyHistory(accumulated);
         
    finishResolve({
-  debugFields: interestingKeys,
 
-  debugQuarterlyEps: {
-    fiscal_period_fq_h:
-      accumulated.fiscal_period_fq_h ?? null,
-
-    earnings_per_share_fq_h:
-      accumulated.earnings_per_share_fq_h ?? null,
-
-    earnings_per_share_diluted_fq_h:
-      accumulated.earnings_per_share_diluted_fq_h ?? null,
-
-    eps_estimates_fq_h:
-      accumulated.eps_estimates_fq_h ?? null,
-  },
-
-  debugSectorFields,
   sector: accumulated.sector ?? null,
 industry: accumulated.industry ?? null,
 marketCap: numberOrNull(
