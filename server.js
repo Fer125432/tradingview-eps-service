@@ -458,10 +458,17 @@ const revenueValues =
     ? readValues("revenue_fq_h")
     : readValues("total_revenue_fq_h");
 
-  const epsValues =
-  readValues("earnings_per_share_fq_h").length > 0
-    ? readValues("earnings_per_share_fq_h")
-    : readValues("earnings_per_share_diluted_fq_h");
+const epsReportedValues =
+  Array.isArray(accumulated.eps_estimates_fq_h)
+    ? accumulated.eps_estimates_fq_h.map((item) =>
+        numberOrNull(item?.Actual)
+      )
+    : [];
+
+const epsValues =
+  epsReportedValues.some((value) => value !== null)
+    ? epsReportedValues
+    : readValues("earnings_per_share_fq_h");
       
           const netIncomeValues =
   readValues("net_income_fq_h");
