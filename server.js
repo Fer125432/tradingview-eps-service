@@ -558,11 +558,20 @@ const historical = buildAnnualHistory(accumulated);
 
 const quarterlyHistorical =
   buildQuarterlyHistory(accumulated);
+
+const debugRevenue = {
+  total_revenue_fq_h: accumulated.total_revenue_fq_h ?? null,
+  revenue_fq_h: accumulated.revenue_fq_h ?? null,
+  revenues_fq_h: accumulated.revenues_fq_h ?? null,
+  fiscal_period_fq_h: accumulated.fiscal_period_fq_h ?? null,
+  fiscal_period_end_fq_h: accumulated.fiscal_period_end_fq_h ?? null,
+};
         
-       finishResolve({
+   finishResolve({
   debugFields: interestingKeys,
-         debugSectorFields,
-      sector: accumulated.sector ?? null,
+  debugRevenue,
+  debugSectorFields,
+  sector: accumulated.sector ?? null,
 industry: accumulated.industry ?? null,
 marketCap: numberOrNull(
   Array.isArray(accumulated.market_cap_basic_fq_h)
