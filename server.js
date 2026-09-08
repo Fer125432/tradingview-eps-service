@@ -453,10 +453,10 @@ const historical = buildAnnualHistory(accumulated);
       ? accumulated[key]
       : [];
 
-  const revenueValues =
-    readValues("total_revenue_fq_h").length > 0
-      ? readValues("total_revenue_fq_h")
-      : readValues("revenue_fq_h");
+const revenueValues =
+  readValues("revenue_fq_h").length > 0
+    ? readValues("revenue_fq_h")
+    : readValues("total_revenue_fq_h");
 
   const epsValues =
     readValues("earnings_per_share_diluted_fq_h").length > 0
@@ -558,18 +558,9 @@ const historical = buildAnnualHistory(accumulated);
 
 const quarterlyHistorical =
   buildQuarterlyHistory(accumulated);
-
-const debugRevenue = {
-  total_revenue_fq_h: accumulated.total_revenue_fq_h ?? null,
-  revenue_fq_h: accumulated.revenue_fq_h ?? null,
-  revenues_fq_h: accumulated.revenues_fq_h ?? null,
-  fiscal_period_fq_h: accumulated.fiscal_period_fq_h ?? null,
-  fiscal_period_end_fq_h: accumulated.fiscal_period_end_fq_h ?? null,
-};
         
    finishResolve({
   debugFields: interestingKeys,
-  debugRevenue,
   debugSectorFields,
   sector: accumulated.sector ?? null,
 industry: accumulated.industry ?? null,
