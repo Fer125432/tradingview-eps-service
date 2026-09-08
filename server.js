@@ -459,20 +459,10 @@ const revenueValues =
     : readValues("total_revenue_fq_h");
 
   const epsValues =
-    readValues("earnings_per_share_diluted_fq_h").length > 0
-      ? readValues("earnings_per_share_diluted_fq_h")
-      : readValues("earnings_per_share_fq_h");
-
-          const debugEps = {
-  earnings_per_share_fq_h:
-    accumulated.earnings_per_share_fq_h ?? null,
-
-  earnings_per_share_diluted_fq_h:
-    accumulated.earnings_per_share_diluted_fq_h ?? null,
-
-  fiscal_period_fq_h:
-    accumulated.fiscal_period_fq_h ?? null,
-};
+  readValues("earnings_per_share_fq_h").length > 0
+    ? readValues("earnings_per_share_fq_h")
+    : readValues("earnings_per_share_diluted_fq_h");
+      
           const netIncomeValues =
   readValues("net_income_fq_h");
 
@@ -573,7 +563,6 @@ const quarterlyHistorical =
    finishResolve({
   debugFields: interestingKeys,
   debugSectorFields,
-     debugEps,
   sector: accumulated.sector ?? null,
 industry: accumulated.industry ?? null,
 marketCap: numberOrNull(
