@@ -441,14 +441,30 @@ const historical = buildAnnualHistory(accumulated);
       ? accumulated[key]
       : [];
 
+const revenuePrimary =
+  readValues("revenue_fq_h");
+
+const revenueFallback =
+  readValues("total_revenue_fq_h");
+
+const epsPrimary =
+  readValues("earnings_per_share_fq_h");
+
+const epsFallback =
+  readValues("earnings_per_share_diluted_fq_h");
+
+// Usamos la serie corta/actual como fuente principal.
+// Si la larga trae más histórico, la usaremos después
+// solo para rellenar los trimestres antiguos que falten.
 const revenueValues =
-  readValues("revenue_fq_h").length > 0
-    ? readValues("revenue_fq_h")
-    : readValues("total_revenue_fq_h");
+  revenuePrimary.length > 0
+    ? revenuePrimary
+    : revenueFallback;
 
 const epsValues =
-  readValues("earnings_per_share_fq_h");
-      
+  epsPrimary.length > 0
+    ? epsPrimary
+    : epsFallback;
           const netIncomeValues =
   readValues("net_income_fq_h");
 
