@@ -427,7 +427,7 @@ const epsTtmNonGaap =
 
 const historical = buildAnnualHistory(accumulated);
 
-        function buildQuarterlyHistory(accumulated) {
+     function buildQuarterlyHistory(accumulated) {
   const periodsRaw = Array.isArray(accumulated.fiscal_period_fq_h)
     ? accumulated.fiscal_period_fq_h
     : [];
@@ -441,37 +441,24 @@ const historical = buildAnnualHistory(accumulated);
       ? accumulated[key]
       : [];
 
-const revenuePrimary =
-  readValues("revenue_fq_h");
+  const revenuePrimary =
+    readValues("revenue_fq_h");
 
-const revenueFallback =
-  readValues("total_revenue_fq_h");
+  const revenueFallback =
+    readValues("total_revenue_fq_h");
 
-const epsPrimary =
-  readValues("earnings_per_share_fq_h");
+  const epsPrimary =
+    readValues("earnings_per_share_fq_h");
 
-const epsFallback =
-  readValues("earnings_per_share_diluted_fq_h");
+  const epsFallback =
+    readValues("earnings_per_share_diluted_fq_h");
 
-// Usamos la serie corta/actual como fuente principal.
-// Si la larga trae más histórico, la usaremos después
-// solo para rellenar los trimestres antiguos que falten.
-const revenueValues =
-  revenuePrimary.length > 0
-    ? revenuePrimary
-    : revenueFallback;
-
-const epsValues =
-  epsPrimary.length > 0
-    ? epsPrimary
-    : epsFallback;
-          const netIncomeValues =
-  readValues("net_income_fq_h");
+  const netIncomeValues =
+    readValues("net_income_fq_h");
 
   function parsePeriod(value, endValue, index) {
     const text = String(value ?? "").trim().toUpperCase();
 
-    // Formatos posibles: 2026Q2, Q2 2026, Q2
     let match = text.match(/(\d{4}).*Q([1-4])/);
 
     if (match) {
@@ -490,8 +477,8 @@ const epsValues =
       };
     }
 
-    // Si solo viene Q1/Q2/Q3/Q4, usamos la fecha de cierre.
     const quarterMatch = text.match(/Q([1-4])/);
+
     const endDate =
       typeof endValue === "number"
         ? new Date(endValue * 1000)
@@ -507,11 +494,11 @@ const epsValues =
       };
     }
 
-    // Último respaldo: deducir trimestre por la fecha de cierre.
     if (!Number.isNaN(endDate.getTime())) {
       return {
         year: endDate.getUTCFullYear(),
-        quarter: Math.floor(endDate.getUTCMonth() / 3) + 1,
+        quarter:
+          Math.floor(endDate.getUTCMonth() / 3) + 1,
       };
     }
 
@@ -542,9 +529,32 @@ const epsValues =
           value,
         };
       })
-      .filter(Boolean)
+      .filter(Boolean);
+  }
+
+  function mergeSeries(primaryValues, fallbackValues) {
+    const primary = buildSeries(primaryValues);
+    const fallback = buildSeries(fallbackValues);
+
+    const merged = new Map();
+
+    for (const item of fallback) {
+      merged.set(
+        `${item.year}-${item.quarter}`,
+        item,
+      );
+    }
+
+    for (const item of primary) {
+      merged.set(
+        `${item.year}-${item.quarter}`,
+        item,
+      );
+    }
+
+    return Array.from(merged.values())
       .sort((a, b) => {
-        if (a.year != b.year) {
+        if (a.year !== b.year) {
           return b.year - a.year;
         }
 
@@ -552,11 +562,26 @@ const epsValues =
       });
   }
 
- return {
-  revenue: buildSeries(revenueValues),
-  epsDiluted: buildSeries(epsValues),
-  netIncome: buildSeries(netIncomeValues),
-};
+  return {
+    revenue: mergeSeries(
+      revenuePrimary,
+      revenueFallback,
+    ),
+
+    epsDiluted: mergeSeries(
+      epsPrimary,
+      epsFallback,
+    ),
+
+    netIncome: buildSeries(netIncomeValues)
+      .sort((a, b) => {
+        if (a.year !== b.year) {
+          return b.year - a.year;
+        }
+
+        return b.quarter - a.quarter;
+      }),
+  };
 }
 
 const quarterlyHistorical =
