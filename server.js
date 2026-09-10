@@ -592,9 +592,13 @@ const quarterlyHistorical =
   sector: accumulated.sector ?? null,
 industry: accumulated.industry ?? null,
 marketCap: numberOrNull(
-  Array.isArray(accumulated.market_cap_basic_fq_h)
-    ? accumulated.market_cap_basic_fq_h[0]
-    : accumulated.market_cap_basic_fq_h
+  accumulated.market_cap_basic ??
+  accumulated.market_cap ??
+  (
+    Array.isArray(accumulated.market_cap_basic_fq_h)
+      ? accumulated.market_cap_basic_fq_h[0]
+      : accumulated.market_cap_basic_fq_h
+  )
 ),
 historical,
           quarterlyHistorical,
