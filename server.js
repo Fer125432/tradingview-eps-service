@@ -249,7 +249,7 @@ async function getTradingViewPerformance1Y(symbol) {
               tickers: [candidate],
               query: { types: [] },
             },
-            columns: ["Perf.Y", "Perf.1Y"],
+            columns: ["Perf.Y", "Perf.1Y", "Perf.12M"],
           }),
         }
       );
@@ -257,20 +257,17 @@ async function getTradingViewPerformance1Y(symbol) {
       if (!response.ok) continue;
 
       const data = await response.json();
-
       const row = data?.data?.[0]?.d ?? [];
 
-      // Método que ya utilizabas
       const perfY = numberOrNull(row[0]);
-      if (perfY !== null) {
-        return perfY;
-      }
+      if (perfY !== null) return perfY;
 
-      // Fallback
       const perf1Y = numberOrNull(row[1]);
-      if (perf1Y !== null) {
-        return perf1Y;
-      }
+      if (perf1Y !== null) return perf1Y;
+
+      const perf12M = numberOrNull(row[2]);
+      if (perf12M !== null) return perf12M;
+
     } catch (_) {
       continue;
     }
