@@ -223,34 +223,51 @@ function candidateSymbols(input) {
 }
 
 async function getTradingViewPerformance1Y(symbol) {
-  const response = await fetch(
-    "https://scanner.tradingview.com/america/scan",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-      },
-      body: JSON.stringify({
-        symbols: {
-          tickers: [symbol],
-          query: { types: [] },
-        },
-        columns: ["Perf.Y"],
-      }),
-    }
-  );
+  const [exchange, ticker] = symbol.split(":");
 
-  if (!response.ok) {
-    throw new Error(
-      `TradingView scanner respondió HTTP ${response.status}`
+  const candidates = [
+    symbol,
+    `NASDAQ:${ticker}`,
+    `NYSE:${ticker}`,
+    `AMEX:${ticker}`,
+    `BATS:${ticker}`,
+  ];
+
+  for (const candidate of [...new Set(candidates)]) {
+    const response = await fetch(
+      "https://scanner.tradingview.com/america/scan",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        },
+        body: JSON.stringify({
+          symbols: {
+            tickers: [candidate],
+            query: { types: [] },
+          },
+          columns: ["Perf.Y"],
+        }),
+      }
     );
+
+    if (!response.ok) {
+      continue;
+    }
+
+    const data = await response.json();
+
+    const performance1y =
+        numberOrNull(data?.data?.[0]?.d?.[0]);
+
+    if (performance1y !== null) {
+      return performance1y;
+    }
   }
 
-  const data = await response.json();
-
-  return numberOrNull(data?.data?.[0]?.d?.[0]);
+  return null;
 }
 
 function getTradingViewEps(symbol, timeoutMs = 20000) {
