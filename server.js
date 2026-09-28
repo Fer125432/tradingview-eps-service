@@ -222,6 +222,37 @@ function candidateSymbols(input) {
   ];
 }
 
+async function getTradingViewPerformance1Y(symbol) {
+  const response = await fetch(
+    "https://scanner.tradingview.com/america/scan",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      },
+      body: JSON.stringify({
+        symbols: {
+          tickers: [symbol],
+          query: { types: [] },
+        },
+        columns: ["Perf.Y"],
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `TradingView scanner respondió HTTP ${response.status}`
+    );
+  }
+
+  const data = await response.json();
+
+  return numberOrNull(data?.data?.[0]?.d?.[0]);
+}
+
 function getTradingViewEps(symbol, timeoutMs = 20000) {
   return new Promise((resolve, reject) => {
     const session = randomSession();
@@ -1105,9 +1136,27 @@ if (!/^[A-Z0-9._:-]{1,40}$/.test(symbol)) {
   }
 
   try {
-    const result = await getTradingViewFromTicker(symbol);
-    res.set("Cache-Control", "no-store");
-    return res.json(result);
+const result = await getTradingViewFromTicker(symbol);
+
+let performance1y = null;
+
+try {
+  performance1y = await getTradingViewPerformance1Y(
+    result.resolvedSymbol || symbol
+  );
+} catch (error) {
+  console.error(
+    "Error obteniendo Perf.Y:",
+    error instanceof Error ? error.message : String(error)
+  );
+}
+
+res.set("Cache-Control", "no-store");
+
+return res.json({
+  ...result,
+  performance1y,
+});
   } catch (error) {
     return res.status(502).json({
       error: "No se pudieron obtener las estimaciones de TradingView",
