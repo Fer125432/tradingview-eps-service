@@ -223,7 +223,7 @@ function candidateSymbols(input) {
 }
 
 async function getTradingViewPerformance1Y(symbol) {
-  const [exchange, ticker] = symbol.split(":");
+  const [, ticker] = symbol.split(":");
 
   const candidates = [
     symbol,
@@ -234,36 +234,45 @@ async function getTradingViewPerformance1Y(symbol) {
   ];
 
   for (const candidate of [...new Set(candidates)]) {
-    const response = await fetch(
-      "https://scanner.tradingview.com/america/scan",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        },
-        body: JSON.stringify({
-          symbols: {
-            tickers: [candidate],
-            query: { types: [] },
+    try {
+      const response = await fetch(
+        "https://scanner.tradingview.com/america/scan",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
           },
-          columns: ["Perf.Y"],
-        }),
+          body: JSON.stringify({
+            symbols: {
+              tickers: [candidate],
+              query: { types: [] },
+            },
+            columns: ["Perf.Y", "Perf.1Y"],
+          }),
+        }
+      );
+
+      if (!response.ok) continue;
+
+      const data = await response.json();
+
+      const row = data?.data?.[0]?.d ?? [];
+
+      // Método que ya utilizabas
+      const perfY = numberOrNull(row[0]);
+      if (perfY !== null) {
+        return perfY;
       }
-    );
 
-    if (!response.ok) {
+      // Fallback
+      const perf1Y = numberOrNull(row[1]);
+      if (perf1Y !== null) {
+        return perf1Y;
+      }
+    } catch (_) {
       continue;
-    }
-
-    const data = await response.json();
-
-    const performance1y =
-        numberOrNull(data?.data?.[0]?.d?.[0]);
-
-    if (performance1y !== null) {
-      return performance1y;
     }
   }
 
