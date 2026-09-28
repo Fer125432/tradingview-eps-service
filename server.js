@@ -347,18 +347,6 @@ function getTradingViewEps(symbol, timeoutMs = 20000) {
         const values = message.p[1].v;
         accumulated = { ...accumulated, ...values };
 
-const perfKeys = Object.keys(accumulated).filter((key) =>
-  key.toLowerCase().includes("perf")
-);
-
-if (perfKeys.length > 0) {
-  console.log(
-    "TRADINGVIEW PERFORMANCE:",
-    Object.fromEntries(
-      perfKeys.map((key) => [key, accumulated[key]])
-    )
-  );
-}
         
      const hasAnnualEpsEstimates =
   Array.isArray(accumulated.eps_estimates_fy_h);
