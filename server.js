@@ -255,24 +255,10 @@ async function getTradingViewPerformance1Y(symbol) {
       );
 
 if (!response.ok) {
-  console.log(
-    "PERF ERROR",
-    candidate,
-    response.status,
-    await response.text()
-  );
   continue;
 }
 
 const data = await response.json();
-
-console.log(
-  "PERF DEBUG",
-  candidate,
-  response.status,
-  JSON.stringify(data)
-);
-
 const row = data?.data?.[0]?.d ?? [];
 
       const perfY = numberOrNull(row[0]);
