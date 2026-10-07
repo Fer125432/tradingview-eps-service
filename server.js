@@ -223,6 +223,33 @@ function candidateSymbols(input) {
 }
 
 async function getTradingViewPerformance1Y(symbol) {
+  // 1) Método actual de TradingView: endpoint directo por símbolo.
+  // Es el que acabamos de comprobar con NASDAQ:AAPL.
+  try {
+    const url =
+      `https://scanner.tradingview.com/symbol?symbol=${encodeURIComponent(symbol)}` +
+      `&fields=Perf.Y&no_404=true&label-product=symbols-performance`;
+
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      },
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      const perfY = numberOrNull(data?.["Perf.Y"]);
+
+      if (perfY !== null) {
+        return perfY;
+      }
+    }
+  } catch (_) {
+    // Si falla, seguimos con el método antiguo.
+  }
+
+  // 2) FALLBACK: conservamos exactamente el sistema anterior.
   const [, ticker] = symbol.split(":");
 
   const candidates = [
@@ -254,12 +281,12 @@ async function getTradingViewPerformance1Y(symbol) {
         }
       );
 
-if (!response.ok) {
-  continue;
-}
+      if (!response.ok) {
+        continue;
+      }
 
-const data = await response.json();
-const row = data?.data?.[0]?.d ?? [];
+      const data = await response.json();
+      const row = data?.data?.[0]?.d ?? [];
 
       const perfY = numberOrNull(row[0]);
       if (perfY !== null) return perfY;
@@ -269,7 +296,6 @@ const row = data?.data?.[0]?.d ?? [];
 
       const perf12M = numberOrNull(row[2]);
       if (perf12M !== null) return perf12M;
-
     } catch (_) {
       continue;
     }
