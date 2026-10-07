@@ -222,6 +222,175 @@ function candidateSymbols(input) {
   ];
 }
 
+function getTradingViewDailyCloses(symbol, timeoutMs = 12000) {
+  return new Promise((resolve, reject) => {
+    const quoteSession = randomSession();
+    const chartSession =
+      `cs_${crypto.randomUUID().replaceAll("-", "").slice(0, 20)}`;
+
+    const socketUrl = buildSocketUrl(symbol);
+
+    const ws = new WebSocket(socketUrl, {
+      origin: "https://www.tradingview.com",
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+          "AppleWebKit/537.36 (KHTML, like Gecko) " +
+          "Chrome/124.0.0.0 Safari/537.36",
+        "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
+      },
+      handshakeTimeout: 10000,
+    });
+
+    let finished = false;
+
+    const timer = setTimeout(() => {
+      finishReject(
+        new Error("Tiempo agotado esperando histórico TradingView")
+      );
+    }, timeoutMs);
+
+    function cleanup() {
+      clearTimeout(timer);
+
+      try {
+        if (
+          ws.readyState === WebSocket.OPEN ||
+          ws.readyState === WebSocket.CONNECTING
+        ) {
+          ws.close(1000, "finished");
+        }
+      } catch {}
+    }
+
+    function finishResolve(value) {
+      if (finished) return;
+      finished = true;
+      cleanup();
+      resolve(value);
+    }
+
+    function finishReject(error) {
+      if (finished) return;
+      finished = true;
+      cleanup();
+      reject(error);
+    }
+
+    ws.on("open", () => {
+      ws.send(tvFrame("set_auth_token", ["unauthorized_user_token"]));
+      ws.send(tvFrame("set_locale", ["es", "ES"]));
+
+      ws.send(
+        tvFrame("chart_create_session", [
+          chartSession,
+          "",
+        ])
+      );
+
+      ws.send(
+        tvFrame("resolve_symbol", [
+          chartSession,
+          "symbol_1",
+          `={"symbol":"${symbol}","adjustment":"splits","session":"regular"}`,
+        ])
+      );
+
+      ws.send(
+        tvFrame("create_series", [
+          chartSession,
+          "s1",
+          "s1",
+          "symbol_1",
+          "1D",
+          400,
+        ])
+      );
+    });
+
+    ws.on("message", (data) => {
+      for (const frame of parseFrames(data)) {
+        if (frame.startsWith("~h~")) {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              `~m~${Buffer.byteLength(frame, "utf8")}~m~${frame}`
+            );
+          }
+          continue;
+        }
+
+        let message;
+
+        try {
+          message = JSON.parse(frame);
+        } catch {
+          continue;
+        }
+
+        if (
+          message?.m !== "timescale_update" ||
+          !Array.isArray(message.p)
+        ) {
+          continue;
+        }
+
+        const series = message.p?.[1]?.s1?.s;
+
+        if (!Array.isArray(series) || series.length === 0) {
+          continue;
+        }
+
+        const candles = series
+          .map((item) => {
+            const values = item?.v;
+
+            if (!Array.isArray(values) || values.length < 5) {
+              return null;
+            }
+
+            const timestamp = numberOrNull(values[0]);
+            const close = numberOrNull(values[4]);
+
+            if (timestamp === null || close === null) {
+              return null;
+            }
+
+            return {
+              timestamp,
+              close,
+            };
+          })
+          .filter(Boolean)
+          .sort((a, b) => a.timestamp - b.timestamp);
+
+        if (candles.length > 0) {
+          finishResolve(candles);
+        }
+      }
+    });
+
+    ws.on("error", finishReject);
+
+    ws.on("unexpected-response", (_request, response) => {
+      finishReject(
+        new Error(
+          `TradingView rechazó histórico: HTTP ${response.statusCode}`
+        )
+      );
+    });
+
+    ws.on("close", (code, reason) => {
+      if (!finished) {
+        finishReject(
+          new Error(
+            `TradingView cerró histórico: ${code} ${reason.toString()}`
+          )
+        );
+      }
+    });
+  });
+}
+
 async function getTradingViewPerformance1Y(symbol) {
   // 1) Método actual de TradingView: endpoint directo por símbolo.
   // Es el que acabamos de comprobar con NASDAQ:AAPL.
@@ -312,6 +481,44 @@ console.log(
       continue;
     }
   }
+// 3) FALLBACK FINAL: calcular la rentabilidad de 1 año
+// usando cierres diarios obtenidos por WebSocket.
+try {
+  const candles = await getTradingViewDailyCloses(symbol);
+
+  if (candles.length >= 2) {
+    const latest = candles[candles.length - 1];
+
+    const oneYearAgo =
+      latest.timestamp - (365 * 24 * 60 * 60);
+
+    let previous = null;
+
+    for (const candle of candles) {
+      if (candle.timestamp <= oneYearAgo) {
+        previous = candle;
+      } else {
+        break;
+      }
+    }
+
+    if (
+      previous &&
+      previous.close > 0 &&
+      latest.close > 0
+    ) {
+      return (
+        ((latest.close / previous.close) - 1) * 100
+      );
+    }
+  }
+} catch (error) {
+  console.error(
+    "Error calculando performance 1Y por WebSocket:",
+    error instanceof Error ? error.message : String(error)
+  );
+}
+
 
   return null;
 }
