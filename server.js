@@ -237,6 +237,13 @@ async function getTradingViewPerformance1Y(symbol) {
       },
     });
 
+console.log(
+  "PERF1Y DIRECTO:",
+  symbol,
+  response.status,
+  await response.clone().text()
+);
+    
     if (response.ok) {
       const data = await response.json();
       const perfY = numberOrNull(data?.["Perf.Y"]);
