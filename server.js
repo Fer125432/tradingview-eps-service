@@ -987,89 +987,57 @@ fetchedAt: new Date().toISOString(),
 async function resolveTradingViewSymbol(input) {
   const value = input.trim().toUpperCase();
 
-  // Si ya viene con exchange, respetarlo.
   if (value.includes(":")) {
     return value;
   }
 
-  try {
-    const url =
-      `https://symbol-search.tradingview.com/symbol_search/v3/` +
-      `?text=${encodeURIComponent(value)}` +
-      `&hl=1&exchange=&lang=en&search_type=stocks&domain=production`;
+  const candidates = [
+    `NASDAQ:${value}`,
+    `NYSE:${value}`,
+    `AMEX:${value}`,
+    `BATS:${value}`,
+  ];
 
-    const response = await fetch(url, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
-          "AppleWebKit/537.36 (KHTML, like Gecko) " +
-          "Chrome/124.0.0.0 Safari/537.36",
-        "Accept": "application/json, text/plain, */*",
-        "Referer": "https://www.tradingview.com/",
-      },
-    });
-
-    if (!response.ok) {
-      return null;
-    }
-
-    const data = await response.json();
-
-    const results = Array.isArray(data)
-      ? data
-      : Array.isArray(data?.symbols)
-        ? data.symbols
-        : [];
-
-    const exact = results.find((item) => {
-      const ticker = String(
-        item?.symbol ?? item?.ticker ?? ""
-      ).toUpperCase();
-
-      const exchange = String(
-        item?.exchange ?? item?.exchange_name ?? ""
-      ).toUpperCase();
-
-      const type = String(
-        item?.type ?? item?.type_disp ?? ""
-      ).toLowerCase();
-
-      return (
-        ticker === value &&
-        exchange &&
-        (
-          type.includes("stock") ||
-          type.includes("common") ||
-          type.includes("dr")
-        )
+  for (const candidate of candidates) {
+    try {
+      const response = await fetch(
+        "https://scanner.tradingview.com/america/scan",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          },
+          body: JSON.stringify({
+            symbols: {
+              tickers: [candidate],
+              query: { types: [] },
+            },
+            columns: ["name", "exchange"],
+          }),
+        }
       );
-    });
 
-    if (!exact) {
-      return null;
+      if (!response.ok) {
+        continue;
+      }
+
+      const data = await response.json();
+
+      if (
+        Number(data?.totalCount) > 0 &&
+        Array.isArray(data?.data) &&
+        data.data.length > 0
+      ) {
+        return candidate;
+      }
+    } catch (_) {
+      continue;
     }
-
-    const ticker = String(
-      exact.symbol ?? exact.ticker ?? ""
-    ).toUpperCase();
-
-    const exchange = String(
-      exact.exchange ?? exact.exchange_name ?? ""
-    ).toUpperCase();
-
-    if (!ticker || !exchange) {
-      return null;
-    }
-
-    return `${exchange}:${ticker}`;
-  } catch (error) {
-    console.error(
-      `Error resolviendo símbolo TradingView ${value}:`,
-      error instanceof Error ? error.message : String(error)
-    );
-
-    return null;
   }
+
+  return null;
 }
 
 async function getTradingViewFromTicker(input) {
