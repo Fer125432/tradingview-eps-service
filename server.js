@@ -984,11 +984,134 @@ fetchedAt: new Date().toISOString(),
   });
 }
 
+async function resolveTradingViewSymbol(input) {
+  const value = input.trim().toUpperCase();
+
+  // Si ya viene con exchange, respetarlo.
+  if (value.includes(":")) {
+    return value;
+  }
+
+  try {
+    const url =
+      `https://symbol-search.tradingview.com/symbol_search/v3/` +
+      `?text=${encodeURIComponent(value)}` +
+      `&hl=1&exchange=&lang=en&search_type=stocks&domain=production`;
+
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+          "AppleWebKit/537.36 (KHTML, like Gecko) " +
+          "Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "application/json, text/plain, */*",
+        "Referer": "https://www.tradingview.com/",
+      },
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = await response.json();
+
+    const results = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.symbols)
+        ? data.symbols
+        : [];
+
+    const exact = results.find((item) => {
+      const ticker = String(
+        item?.symbol ?? item?.ticker ?? ""
+      ).toUpperCase();
+
+      const exchange = String(
+        item?.exchange ?? item?.exchange_name ?? ""
+      ).toUpperCase();
+
+      const type = String(
+        item?.type ?? item?.type_disp ?? ""
+      ).toLowerCase();
+
+      return (
+        ticker === value &&
+        exchange &&
+        (
+          type.includes("stock") ||
+          type.includes("common") ||
+          type.includes("dr")
+        )
+      );
+    });
+
+    if (!exact) {
+      return null;
+    }
+
+    const ticker = String(
+      exact.symbol ?? exact.ticker ?? ""
+    ).toUpperCase();
+
+    const exchange = String(
+      exact.exchange ?? exact.exchange_name ?? ""
+    ).toUpperCase();
+
+    if (!ticker || !exchange) {
+      return null;
+    }
+
+    return `${exchange}:${ticker}`;
+  } catch (error) {
+    console.error(
+      `Error resolviendo símbolo TradingView ${value}:`,
+      error instanceof Error ? error.message : String(error)
+    );
+
+    return null;
+  }
+}
+
 async function getTradingViewFromTicker(input) {
-  const candidates = candidateSymbols(input);
+  const value = input.trim().toUpperCase();
   const errors = [];
 
+  // 1. Resolver primero el exchange real.
+  const resolved = await resolveTradingViewSymbol(value);
+
+  if (resolved) {
+    try {
+      const result = await getTradingViewEps(resolved, 8000);
+
+      const hasHistorical =
+        Array.isArray(result?.historical?.revenue) &&
+        result.historical.revenue.length > 0;
+
+      if (hasHistorical) {
+        return {
+          ...result,
+          requestedSymbol: input,
+          resolvedSymbol: resolved,
+        };
+      }
+    } catch (error) {
+      errors.push(
+        `${resolved}: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
+  }
+
+  // 2. Si falla el buscador, usar el sistema anterior como fallback.
+  const candidates = candidateSymbols(value);
+
   for (const symbol of candidates) {
+    // Evitar probar dos veces el mismo símbolo.
+    if (symbol === resolved) {
+      continue;
+    }
+
     try {
       const result = await getTradingViewEps(symbol, 8000);
 
@@ -1005,7 +1128,9 @@ async function getTradingViewFromTicker(input) {
       }
     } catch (error) {
       errors.push(
-        `${symbol}: ${error instanceof Error ? error.message : String(error)}`
+        `${symbol}: ${
+          error instanceof Error ? error.message : String(error)
+        }`
       );
     }
   }
@@ -1014,6 +1139,7 @@ async function getTradingViewFromTicker(input) {
     `No se encontró ${input}. Intentos: ${errors.join(" | ")}`
   );
 }
+
 // ============================================================
 // SEC EARNINGS DETECTOR
 // ============================================================
