@@ -334,10 +334,7 @@ if (
   continue;
 }
 
-console.log(
-  "TIMESCALE AAPL:",
-  JSON.stringify(message)
-);
+
 
 const series = message.p?.[1]?.s1?.s;
 
@@ -416,12 +413,7 @@ async function getTradingViewPerformance1Y(symbol) {
 },
     });
 
-console.log(
-  "PERF1Y DIRECTO:",
-  symbol,
-  response.status,
-  await response.clone().text()
-);
+
     
     if (response.ok) {
       const data = await response.json();
@@ -621,19 +613,7 @@ function getTradingViewEps(symbol, timeoutMs = 20000) {
 
         const values = message.p[1].v;
         accumulated = { ...accumulated, ...values };
-const perfKeys = Object.keys(accumulated).filter((key) =>
-  key.toLowerCase().includes("perf")
-);
-
-if (perfKeys.length > 0) {
-  console.log(
-    "PERFORMANCE WS:",
-    Object.fromEntries(
-      perfKeys.map((key) => [key, accumulated[key]])
-    )
-  );
-}
-        
+     
         
      const hasAnnualEpsEstimates =
   Array.isArray(accumulated.eps_estimates_fy_h);
