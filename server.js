@@ -327,14 +327,19 @@ function getTradingViewDailyCloses(symbol, timeoutMs = 12000) {
           continue;
         }
 
-        if (
-          message?.m !== "timescale_update" ||
-          !Array.isArray(message.p)
-        ) {
-          continue;
-        }
+if (
+  message?.m !== "timescale_update" ||
+  !Array.isArray(message.p)
+) {
+  continue;
+}
 
-        const series = message.p?.[1]?.s1?.s;
+console.log(
+  "TIMESCALE AAPL:",
+  JSON.stringify(message)
+);
+
+const series = message.p?.[1]?.s1?.s;
 
         if (!Array.isArray(series) || series.length === 0) {
           continue;
