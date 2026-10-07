@@ -1058,7 +1058,35 @@ async function resolveTradingViewSymbol(input) {
     return null;
   }
 }
+async function getTradingViewFromTicker(input) {
+  const value = input.trim().toUpperCase();
+  const errors = [];
 
+  const resolved = await resolveTradingViewSymbol(value);
+
+  if (resolved) {
+    try {
+      const result = await getTradingViewEps(resolved, 8000);
+
+      const hasHistorical =
+        Array.isArray(result?.historical?.revenue) &&
+        result.historical.revenue.length > 0;
+
+      if (hasHistorical) {
+        return {
+          ...result,
+          requestedSymbol: input,
+          resolvedSymbol: resolved,
+        };
+      }
+    } catch (error) {
+      errors.push(
+        `${resolved}: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
+  }
   // 2. Si falla el buscador, usar el sistema anterior como fallback.
   const candidates = candidateSymbols(value);
 
