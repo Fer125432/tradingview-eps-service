@@ -2,6 +2,7 @@ import express from "express";
 import WebSocket from "ws";
 import fs from "fs";
 import { initializeApp, cert } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
 const app = express();
@@ -35,7 +36,7 @@ app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader(
     "Access-Control-Allow-Methods",
-    "GET, OPTIONS"
+    "GET, POST, OPTIONS"
   );
   res.setHeader(
     "Access-Control-Allow-Headers",
@@ -1556,6 +1557,101 @@ app.get("/earnings", requireApiKey, async (req, res) => {
         error instanceof Error
           ? error.message
           : String(error),
+    });
+  }
+});
+app.post("/ensure-earnings", async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(503).json({
+        error: "Firebase no disponible",
+      });
+    }
+
+    const authorization = req.get("authorization") || "";
+    const match = authorization.match(/^Bearer (.+)$/i);
+
+    if (!match) {
+      return res.status(401).json({ error: "Falta autenticación" });
+    }
+
+    const decoded = await getAuth().verifyIdToken(match[1]);
+
+    if (!decoded.email_verified) {
+      return res.status(403).json({ error: "Usuario no verificado" });
+    }
+
+    const ticker = String(req.body?.symbol || "")
+      .trim()
+      .toUpperCase();
+
+    if (!/^[A-Z0-9.-]{1,20}$/.test(ticker)) {
+      return res.status(400).json({ error: "Ticker inválido" });
+    }
+
+    const docRef = db.collection("earnings_filings").doc(ticker);
+    const previousSnapshot = await docRef.get();
+    const previous = previousSnapshot.data();
+
+    if (previousSnapshot.exists) {
+  return res.json({
+    ticker,
+    updated: false,
+    cached: true,
+    filedAt: previous?.filedAt || null,
+  });
+}
+
+    // Evitar consultar continuamente la SEC.
+    const lastChecked = Date.parse(previous?.checkedAt || "");
+    if (
+      Number.isFinite(lastChecked) &&
+      Date.now() - lastChecked < 6 * 60 * 60 * 1000
+    ) {
+      return res.json({
+        ticker,
+        updated: false,
+        cached: true,
+        filedAt: previous?.filedAt || null,
+      });
+    }
+
+    const latest = await getLatestSecEarnings(ticker);
+
+    if (!latest?.earningsDetected) {
+      return res.json({
+        ticker,
+        earningsDetected: false,
+        updated: false,
+      });
+    }
+
+    const changed =
+      previous?.accessionNumber !== latest.accessionNumber;
+
+    await docRef.set({
+      accessionNumber: latest.accessionNumber,
+      filedAt: latest.filedAt || null,
+      filing: latest.filing || null,
+      secUrl: latest.secUrl || null,
+      earningsDocument: latest.earningsDocument || null,
+      primaryDocument: latest.primaryDocument || null,
+      detection: latest.detection || null,
+      checkedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }, { merge: true });
+
+    return res.json({
+      ticker,
+      earningsDetected: true,
+      updated: changed,
+      filedAt: latest.filedAt,
+    });
+
+  } catch (error) {
+    console.error("Error ensure-earnings:", error);
+    return res.status(500).json({
+      error: "No se pudo consultar el informe",
     });
   }
 });
