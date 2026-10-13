@@ -1667,7 +1667,8 @@ app.get("/sync-earnings", requireApiKey, async (req, res) => {
     });
   }
 });
-app.get("/sync-all-earnings", requireApiKey, async (_req, res) => {
+app.get("/sync-all-earnings", requireApiKey, async (req, res) => {
+  const silent = req.query.silent === "1";
   if (!db) {
     return res.status(500).json({
       error: "Firebase Admin no inicializado",
@@ -1752,21 +1753,24 @@ const results = [];
         updatedAt: new Date().toISOString(),
       });
 
-      await db
-        .collection("earnings_alerts")
-        .add({
+      if (!silent) {
+        await db
+          .collection("earnings_alerts")
+          .add({
+            ticker,
+            accessionNumber: currentAccession,
+            filedAt: latest.filedAt || null,
+            filing: String(latest.filing || "").trim(),
+            secUrl: latest.secUrl || null,
+            createdAt: new Date().toISOString(),
+            sent: false,
+          });
+
+        await sendEarningsNotification(
           ticker,
-          accessionNumber: currentAccession,
-          filedAt: latest.filedAt || null,
-          filing: String(latest.filing || "").trim(),
-          secUrl: latest.secUrl || null,
-          createdAt: new Date().toISOString(),
-          sent: false,
-        });
-await sendEarningsNotification(
-  ticker,
-  latest.secUrl || ""
-);
+          latest.secUrl || ""
+        );
+      }
       results.push({
         ticker,
         earningsDetected: true,
