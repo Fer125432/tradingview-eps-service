@@ -1560,6 +1560,7 @@ app.get("/earnings", requireApiKey, async (req, res) => {
   }
 });
 app.get("/sync-earnings", requireApiKey, async (req, res) => {
+  const silent = req.query.silent === "1";
   const ticker = String(req.query.symbol || "")
     .trim()
     .toUpperCase();
@@ -1628,21 +1629,24 @@ app.get("/sync-earnings", requireApiKey, async (req, res) => {
       updatedAt: new Date().toISOString(),
     });
 
-    await db
-      .collection("earnings_alerts")
-      .add({
+    if (!silent) {
+      await db
+        .collection("earnings_alerts")
+        .add({
+          ticker,
+          accessionNumber: currentAccession,
+          filedAt: latest.filedAt || null,
+          filing: String(latest.filing || "").trim(),
+          secUrl: latest.secUrl || null,
+          createdAt: new Date().toISOString(),
+          sent: false,
+        });
+
+      await sendEarningsNotification(
         ticker,
-        accessionNumber: currentAccession,
-        filedAt: latest.filedAt || null,
-        filing: String(latest.filing || "").trim(),
-        secUrl: latest.secUrl || null,
-        createdAt: new Date().toISOString(),
-        sent: false,
-      });
-await sendEarningsNotification(
-  ticker,
-  latest.secUrl || ""
-);
+        latest.secUrl || ""
+      );
+    }
     return res.json({
       ticker,
       earningsDetected: true,
