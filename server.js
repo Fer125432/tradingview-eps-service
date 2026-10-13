@@ -1726,9 +1726,10 @@ app.get("/sync-earnings", requireApiKey, async (req, res) => {
     });
 
     if (!silent) {
-      await db
-        .collection("earnings_alerts")
-        .add({
+    await db
+  .collection("earnings_alerts")
+  .doc(ticker)
+  .set({
           ticker,
           accessionNumber: currentAccession,
           filedAt: latest.filedAt || null,
@@ -1850,9 +1851,10 @@ const results = [];
       });
 
       if (!silent) {
-        await db
-          .collection("earnings_alerts")
-          .add({
+      await db
+  .collection("earnings_alerts")
+  .doc(ticker)
+  .set({
             ticker,
             accessionNumber: currentAccession,
             filedAt: latest.filedAt || null,
