@@ -1593,29 +1593,6 @@ app.post("/ensure-earnings", async (req, res) => {
     const previousSnapshot = await docRef.get();
     const previous = previousSnapshot.data();
 
-    if (previousSnapshot.exists) {
-  return res.json({
-    ticker,
-    updated: false,
-    cached: true,
-    filedAt: previous?.filedAt || null,
-  });
-}
-
-    // Evitar consultar continuamente la SEC.
-    const lastChecked = Date.parse(previous?.checkedAt || "");
-    if (
-      Number.isFinite(lastChecked) &&
-      Date.now() - lastChecked < 6 * 60 * 60 * 1000
-    ) {
-      return res.json({
-        ticker,
-        updated: false,
-        cached: true,
-        filedAt: previous?.filedAt || null,
-      });
-    }
-
     const latest = await getLatestSecEarnings(ticker);
 
     if (!latest?.earningsDetected) {
@@ -1640,6 +1617,18 @@ app.post("/ensure-earnings", async (req, res) => {
       checkedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }, { merge: true });
+
+    if (changed) {
+  await db.collection("earnings_alerts").doc(ticker).set({
+    ticker,
+    accessionNumber: latest.accessionNumber,
+    filedAt: latest.filedAt || null,
+    filing: String(latest.filing || "").trim(),
+    secUrl: latest.secUrl || null,
+    createdAt: new Date().toISOString(),
+    sent: false,
+  });
+}
 
     return res.json({
       ticker,
