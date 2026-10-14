@@ -1618,7 +1618,24 @@ app.post("/ensure-earnings", async (req, res) => {
       updatedAt: new Date().toISOString(),
     }, { merge: true });
 
-    if (changed) {
+const alertRef = db.collection("earnings_alerts").doc(ticker);
+let recuperarAlerta = false;
+
+if (!changed) {
+  const alertaActual = await alertRef.get();
+
+  if (!alertaActual.exists) {
+    const antiguas = await db.collection("earnings_alerts")
+      .where("ticker", "==", ticker)
+      .where("accessionNumber", "==", latest.accessionNumber)
+      .limit(1)
+      .get();
+
+    recuperarAlerta = !antiguas.empty;
+  }
+}
+
+if (changed || recuperarAlerta) {
   await db.collection("earnings_alerts").doc(ticker).set({
     ticker,
     accessionNumber: latest.accessionNumber,
