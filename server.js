@@ -1243,7 +1243,7 @@ async function getLatestEarningsFiling(ticker, submissions) {
   const primaryDocuments = recent.primaryDocument || [];
   const items = recent.items || [];
 
-  const foreignIssuer = ["DLO", "TSM"].includes(upperTicker);
+const foreignIssuer = ["DLO", "TSM", "ASML"].includes(upperTicker);
 
   for (let i = 0; i < forms.length; i++) {
     const form = forms[i];
