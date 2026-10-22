@@ -697,6 +697,7 @@ const epsTtmNonGaap =
   };
 
   return {
+      per: readSeries("price_earnings_fy_h"),
     revenue: readSeries("total_revenue_fy_h"),
     cogs: readSeries("cost_of_goods_fy_h"),
     grossProfit: readSeries("gross_profit_fy_h"),
@@ -726,6 +727,15 @@ const epsTtmNonGaap =
 }
 
 const historical = buildAnnualHistory(accumulated);
+
+        const ultimos5PER = historical.per
+  .filter(item => item.value > 0)
+  .sort((a, b) => b.year - a.year)
+  .slice(0, 5);
+
+const perMedio5Y = ultimos5PER.length === 5
+  ? ultimos5PER.reduce((sum, item) => sum + item.value, 0) / 5
+  : null;
 
      function buildQuarterlyHistory(accumulated) {
   const periodsRaw = Array.isArray(accumulated.fiscal_period_fq_h)
@@ -887,12 +897,9 @@ const historical = buildAnnualHistory(accumulated);
 const quarterlyHistorical =
   buildQuarterlyHistory(accumulated);
         
-   finishResolve({
-  debugPER: Object.fromEntries(
-    Object.entries(accumulated).filter(([key]) =>
-      /price_earnings|p_e_ratio|pe_ratio|earnings.*ratio/i.test(key)
-    )
-  ),
+finishResolve({
+  perMedio5Y,
+  perActual: numberOrNull(accumulated.price_earnings_ttm),
      
   sector: accumulated.sector ?? null,
 industry: accumulated.industry ?? null,
