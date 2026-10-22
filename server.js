@@ -615,12 +615,7 @@ function getTradingViewEps(symbol, timeoutMs = 20000) {
         const values = message.p[1].v;
         accumulated = { ...accumulated, ...values };
 
-        console.log(
-  "CAMPOS PER TRADINGVIEW:",
-  Object.entries(values).filter(([key]) =>
-    /price_earnings|p_e_ratio|pe_ratio/i.test(key)
-  )
-);
+
      
         
      const hasAnnualEpsEstimates =
@@ -893,7 +888,12 @@ const quarterlyHistorical =
   buildQuarterlyHistory(accumulated);
         
    finishResolve({
-
+  debugPER: Object.fromEntries(
+    Object.entries(accumulated).filter(([key]) =>
+      /price_earnings|p_e_ratio|pe_ratio|earnings.*ratio/i.test(key)
+    )
+  ),
+     
   sector: accumulated.sector ?? null,
 industry: accumulated.industry ?? null,
 marketCap: numberOrNull(
